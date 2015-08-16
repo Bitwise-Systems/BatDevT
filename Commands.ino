@@ -13,6 +13,8 @@
 //      Reduced FreeRam from two types of ram reports to one
 //      Tracked extra voltage on bus (with no battery) to INA219
 //
+//      Cosmetic tweaks, just to refine a GitHub workflow
+//
 
 exitStatus ThermLoop (char **args)    // Temporarily provide access to 'ThermMonitor'
 {
@@ -119,52 +121,68 @@ exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Vol
     return Success;
 }
 
-exitStatus cvCPR (char **args)         // bring a battery back from the dead
+exitStatus cvCPR(char **args)          // bring a battery back from the dead
 {
     exitStatus rc;
 
     for (int i = 0; i < 4; i++) {
-	rc = ConstantVoltage(1.0, 5, 2);
-        if (rc = MaxTime)      continue;
-        else if (rc = MinAmp)  break;
-        else { ReportExitStatus(rc);
+        rc = ConstantVoltage(1.0, 5, 2);
+        if (rc = MaxTime)
+            continue;
+        else if (rc = MinAmp)
+            break;
+        else {
+            ReportExitStatus(rc);
             return ParameterError;
         }
     }
     for (int i = 0; i < 4; i++) {
-	rc = ConstantVoltage(1.1, 10, 2);
-        if (rc = MaxTime)      continue;
-        else if (rc = MinAmp)  break;
-        else { ReportExitStatus(rc);
+        rc = ConstantVoltage(1.1, 10, 2);
+        if (rc = MaxTime)
+            continue;
+        else if (rc = MinAmp)
+            break;
+        else {
+            ReportExitStatus(rc);
             return ParameterError;
         }
     }
     for (int i = 0; i < 4; i++) {
-	rc = ConstantVoltage(1.2, 15, 2);
-        if (rc = MaxTime)      continue;
-        else if (rc = MinAmp)  break;
-        else { ReportExitStatus(rc);
+        rc = ConstantVoltage(1.2, 15, 2);
+        if (rc = MaxTime)
+            continue;
+        else if (rc = MinAmp)
+            break;
+        else {
+            ReportExitStatus(rc);
             return ParameterError;
         }
     }
     for (int i = 0; i < 4; i++) {
-	rc = ConstantVoltage(1.3, 20, 10);
-        if (rc = MaxTime)      continue;
-        else if (rc = MinAmp)  break;
-        else { ReportExitStatus(rc);
+        rc = ConstantVoltage(1.3, 20, 10);
+        if (rc = MaxTime)
+            continue;
+        else if (rc = MinAmp)
+            break;
+        else {
+            ReportExitStatus(rc);
             return ParameterError;
         }
     }
     for (int i = 0; i < 4; i++) {
-	rc = ConstantVoltage(1.4, 20, 20);
-        if (rc = MaxTime)      continue;
-        else if (rc = MinAmp)  break;
-        else { ReportExitStatus(rc);
+        rc = ConstantVoltage(1.4, 20, 20);
+        if (rc = MaxTime)
+            continue;
+        else if (rc = MinAmp)
+            break;
+        else {
+            ReportExitStatus(rc);
             return ParameterError;
         }
     }
     return Success;
 }
+
 
 exitStatus DischargeCmd (char **args)
 {
@@ -220,7 +238,7 @@ exitStatus LoffCmd(char **args)
         Printx("low ");
         break;
     case 'b':
-        LoadBus();
+        UnLoadBus();
         Printx("bus");
         break;
     default:
@@ -392,6 +410,5 @@ exitStatus VsetCmd (char **args)
     voltsetting = SetVoltage((*++args == NULL) ? SetVLow : atof(*args));
     Printf("setting prelim voltage to %1.3f\n", voltsetting);
     return Success;
+
 }
-
-
