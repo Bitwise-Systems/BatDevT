@@ -24,7 +24,7 @@ exitStatus BailOutQ (float busV, float battemp)
 
 exitStatus BatteryPresentQ (float busV)
 {
-
+    return Success;         // <<< TEMPORARY: checking effect of removing battery detection circuitry >>>
 
     exitStatus DetectRC = Success;             // means nimh of correct polarity is found
     float shuntMA;
@@ -55,7 +55,6 @@ exitStatus BatteryPresentQ (float busV)
     return DetectRC;                        // if batt detect pin is low, batt is present
                                             // ..also, 0.0 < busV < 1.35, assume nimh
 }
-
 
 
 //---------------------------------------------------------------------------------------
@@ -102,6 +101,7 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
     }
     return MaxTime;
 }
+
 
 //---------------------------------------------------------------------------------------
 //    ThermMonitor -- Observe thermometer data (plus current & voltage)
