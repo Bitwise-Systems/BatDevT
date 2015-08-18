@@ -8,7 +8,7 @@ void InitLoads (void)
     pinMode(MediumLoadGate, OUTPUT);
     pinMode(LightLoadGate, OUTPUT);
     pinMode(BusLoad, INPUT);             // HI-Z means no affect on bus voltage
-    pinMode(BatDetect, INPUT_PULLUP);    // reads high until inserted battery pulls it low
+//  pinMode(BatDetect, INPUT_PULLUP);    // reads high until inserted battery pulls it low  <<< Prevent 5V always on bus
 }
 
 
