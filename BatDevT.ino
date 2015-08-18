@@ -26,7 +26,7 @@
 #define vThresh       1.52         // Sets min voltage to start dip detection
 #define mAmpCeiling   4000         // Max allowable thru INA219 shunt resistor
 #define maxBatTemp    44.9         // Max allowed battery temperature
-#define maxBatVolt    1.70         // Max allowed battery voltage
+#define maxBatVolt    1.75         // Max allowed battery voltage
 
 #define reportInterval 5000L       // In milliseconds
 
@@ -93,8 +93,6 @@ const struct DispatchTable commandTable[] = {
 
 void setup (void)
 {
-  //  void InitTimerTask(unsigned interval, void (*callback)());
-    
     Serial.begin(38400);
     delay(600);
 
@@ -110,7 +108,6 @@ void setup (void)
             ;
     }
     InitTimerTask(100, RefreshTemperatures);
-    //InitTimers(100);
     InitLoads();
     SetPGA(8);
     Printf("BattID: %c\n", toupper(battID));
