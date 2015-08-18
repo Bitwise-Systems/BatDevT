@@ -1,7 +1,6 @@
 //
 //      Commands.ino  --  Handlers for interpreter commands
 //
-//
 //      Remove large data headers from ccdCmd and cvCmd and replace the functionality
 //      ...with PrintCCInfo and CVInfo   9/3/14
 //
@@ -13,7 +12,6 @@
 //      Reduced FreeRam from two types of ram reports to one
 //      Tracked extra voltage on bus (with no battery) to INA219
 //
-//      Cosmetic tweaks, just to refine a GitHub workflow
 //
 
 exitStatus ThermLoop (char **args)    // Temporarily provide access to 'ThermMonitor'
@@ -23,6 +21,7 @@ exitStatus ThermLoop (char **args)    // Temporarily provide access to 'ThermMon
     Printx("Done\n");
     return Success;
 }
+
 
 exitStatus BatPresentCmd (char **args)
 {
@@ -35,6 +34,7 @@ exitStatus BatPresentCmd (char **args)
     Printx("\n");
     return Success;
 }
+
 
 exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA, arg 2 is minutes
 {
@@ -121,7 +121,8 @@ exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Vol
     return Success;
 }
 
-exitStatus cvCPR(char **args)          // bring a battery back from the dead
+
+exitStatus cvCPR (char **args)          // bring a battery back from the dead
 {
     exitStatus rc;
 
@@ -222,6 +223,7 @@ exitStatus iGetCmd (char **args)
     return Success;
 }
 
+
 exitStatus LoffCmd(char **args)
 {
     switch (**++args) {
@@ -284,6 +286,7 @@ exitStatus NudgeCmd (char **args)
     return Success;
 }
 
+
 exitStatus PgaCmd (char **args)
 {
     int divisor;
@@ -313,7 +316,6 @@ exitStatus PrintHelp (char **args)
     int i;
     for (i = 0; (c = EEPROM.read(i)) != '\0'; i++)
         Serial.write(c);
-    Printf("last pos %d\n", i);
     return Success;
 }
 
@@ -325,6 +327,7 @@ exitStatus PwrGoodCmd (char **args)
     return Success;
 }
 
+
 exitStatus PwrOnCmd (char **args)
 {
     (void) args;
@@ -334,6 +337,7 @@ exitStatus PwrOnCmd (char **args)
     return Success;
 }
 
+
 exitStatus PwrOffCmd (char **args)
 {
     (void) args;
@@ -342,6 +346,7 @@ exitStatus PwrOffCmd (char **args)
     Printx("Power OFF\n");
     return Success;
 }
+
 
 exitStatus Report (char **args)
 {
@@ -363,6 +368,7 @@ exitStatus ReportHeats (char **args)
     Printf("Load Temp: %1.2f   Ambient Temp: %1.2f\n", thermLoad, thermAmbient);
     return Success;
 }
+
 
 exitStatus SetID (char **args)   // would rather this do strings than a single char....
 {                // doesn't constrain to alpha chars
@@ -392,6 +398,7 @@ exitStatus unknownCommand (char **args)
     return ParameterError;
 
 }
+
 
 exitStatus vGetCmd (char **args)
 {
