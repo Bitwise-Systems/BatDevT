@@ -13,7 +13,6 @@
 //
 //    Version 4.2: Inaugurate use of new virtual timer package
 //
-//    <<< Line added to Master repo to see if 'pull' merges it to local git
 //
 
 #include <EEPROM.h>
