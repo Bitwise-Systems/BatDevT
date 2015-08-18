@@ -13,6 +13,8 @@
 //
 //    Version 4.2: Inaugurate use of new virtual timer package
 //
+//    <<< If this change is reflected to Hutch's working 'git', then pulling is working
+//
 //
 
 #include <EEPROM.h>
