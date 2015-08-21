@@ -28,7 +28,7 @@ exitStatus BatteryPresentQ (float busV)
 
     exitStatus DetectRC = Success;             // means nimh of correct polarity is found
     float shuntMA;
-    
+
     LoadBus();                                 // slight load removes ~1.3V stray from '219 on empty bus
 
     if (busV > 1.35) {
@@ -47,9 +47,9 @@ exitStatus BatteryPresentQ (float busV)
             DetectRC = BatRev;
         }
         LightOff();
-    }    
+    }
     UnLoadBus();
-    if (digitalRead(BatDetect) == HIGH) { 
+    if (digitalRead(BatDetect) == HIGH) {
         DetectRC = NoBatt;
     }
     return DetectRC;                        // if batt detect pin is low, batt is present
@@ -112,7 +112,7 @@ exitStatus ThermMonitor (int minutes)
     float shuntMA, busV, ambientTemp, batteryTemp;
 
     ResyncTimer(ReportTimer);
-    StartTimer(MaxChargeTimer, (minutes * 60 * 10UL));
+    StartTimer(MaxChargeTimer, (minutes * 60.0));
 
     while (IsRunning(MaxChargeTimer)) {
         if (Serial.available() > 0)
@@ -156,7 +156,7 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
     }
     HeavyOff();
 
-    StartTimer(ReboundTimer, reboundTime * 10UL);
+    StartTimer(ReboundTimer, reboundTime);
     ResyncTimer(ReportTimer);
     while (IsRunning(ReboundTimer)) {
         if (HasExpired(ReportTimer)) {
@@ -196,7 +196,7 @@ exitStatus CoolDown (unsigned durationM)
     float shuntMA, busV, batteryTemp, ambientTemp;
 
     ResyncTimer(ReportTimer);
-    StartTimer(MaxChargeTimer, (durationM * 60 * 10UL));
+    StartTimer(MaxChargeTimer, (durationM * 60.0));
 
     while (IsRunning(MaxChargeTimer)) {
         if (Serial.available() > 0)

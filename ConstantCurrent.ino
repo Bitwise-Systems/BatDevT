@@ -26,7 +26,7 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
 
     ActivateDetector();
     ResyncTimer(ReportTimer);
-    StartTimer(MaxChargeTimer, (durationM * 60 * 10UL));
+    StartTimer(MaxChargeTimer, (durationM * 60.0));
 
     while (IsRunning(MaxChargeTimer)) {
         timeStamp = millis();
@@ -74,7 +74,7 @@ boolean extending;        // <<< Temporary: remove when time extension nolonger 
 
 void ActivateDetector (void)
 {
-    StartTimer(ArmDetectorTimer, (10 * 60 * 10UL));    // 10 minutes
+    StartTimer(ArmDetectorTimer, (10 * 60.0));    // 10 minutes
     runLength = 0;
     previousMA = 10000.0;
     extending = false;
@@ -102,7 +102,7 @@ boolean FullyCharged (float shuntMA, float tempDifferential)
         CTReport(2, shuntMA, 0.0, tempDifferential, 0.0, millis());
     //  return true;
         extending = true;                              // <<< Temporary: extend run...
-        StartTimer(ExtensionTimer, 10 * 60 * 10UL);    // <<< ...for ten more minutes
+        StartTimer(ExtensionTimer, 10 * 60.0);         // <<< ...for ten more minutes
     }
     return false;
 

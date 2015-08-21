@@ -13,8 +13,6 @@
 //
 //    Version 4.2: Inaugurate use of new virtual timer package
 //
-//    <<< If this change is reflected to Hutch's working 'git', then pulling is working
-//
 //
 
 #include <EEPROM.h>
@@ -110,7 +108,7 @@ void setup (void)
         while (1)
             ;
     }
-    InitTimerTask(100, RefreshTemperatures);
+    InitTimerTask(RefreshTemperatures);
     InitLoads();
     SetPGA(8);
     Printf("BattID: %c\n", toupper(battID));
@@ -133,7 +131,7 @@ void loop (void)
 
     rc = (*commandTable[i].handler)(t);    // call command handler
     if (rc != 0) {
-        ReportExitStatus(rc); 
+        ReportExitStatus(rc);
         Printx("\n");
     }
 }

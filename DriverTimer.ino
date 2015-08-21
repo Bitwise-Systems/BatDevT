@@ -6,7 +6,7 @@
 //    T1 uses a 16-bit counter, we can go for up to 1.05 seconds ((2^16 - 1) * 16 us)
 //    between interrupts.
 //
-//    Version 2: Added support for virtual timers.
+//    Version 2: Virtual timer support.
 //
 //---------------------------------------------------------------------------------------
 
@@ -14,9 +14,15 @@
 void (*callbackFunction)() = NULL;     // Callback function pointer
 
 
-void StartTimer (OneShotTimerID id, unsigned long count)   // Start one-shot timer
+void StartTimer (OneShotTimerID id, float seconds)   // Start one-shot timer
 {
+    unsigned long count;
+
+    if (seconds <= 0.0)
+        return;
+
     if (id < NumOneShot) {
+        count = (unsigned long) (100.0 * seconds);   // convert to 10-ms ticks
         cli();
         oneShot[id] = count;
         sei();
@@ -64,9 +70,8 @@ boolean HasExpired (FreeRunningTimerID id)    // Query free-running timer
 
 }
 
-
-void InitTimerTask (unsigned interval, void (*callback)())
-{
+void InitTimerTask (void (*callback)())    // Initialize the timer package,
+{                                          // using a 10 ms interrupt interval.
     callbackFunction = callback;
 
     TCCR1B = 0;      // Stop the timer, et al.
@@ -77,8 +82,8 @@ void InitTimerTask (unsigned interval, void (*callback)())
     bitSet(TCCR1B, WGM12);        // WGM13:10 = 4 (CTC counter mode).
     bitSet(TIMSK1, OCIE1A);       // Enable interrupts for matches to OCR1A.
 
-    TCNT1 = 0;                                   // Clear the timer counter.
-    OCR1A = (62 * interval) + (interval >> 1);   // Establish the TOP value for CTC mode.
+    TCNT1 = 0;                         // Clear the timer counter.
+    OCR1A = (62 * 10) + (10 >> 1);     // Establish the TOP value for CTC mode.
 
     for (int i = 0; i < NumFreeRunning; i++) {          // Initialize data structure
         freeRunning[i].count = freeRunning[i].reload;
@@ -94,6 +99,8 @@ ISR(TIMER1_COMPA_vect)      // TIMER1 compare-match interrupt service routine:
 {
     unsigned long t;        // Non-volatile working variable prevents double fetch...
 
+    static byte interruptCount = 0;
+
     for (int i = 0; i < NumOneShot; i++) {
         if ((t = oneShot[i]) != 0)
             oneShot[i] = --t;
@@ -106,8 +113,11 @@ ISR(TIMER1_COMPA_vect)      // TIMER1 compare-match interrupt service routine:
             freeRunning[i].state = Expired;
         }
     }
-    sei();
-    if (callbackFunction != NULL)
-        (*callbackFunction)();
+    if (++interruptCount == (byte) 10) {    // Callback interval = 100ms
+        interruptCount = 0;
+        sei();
+        if (callbackFunction != NULL)
+            (*callbackFunction)();
+    }
 
 }

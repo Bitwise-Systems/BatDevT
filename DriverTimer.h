@@ -3,7 +3,7 @@
 //=============================================================================
 
 
-void InitTimerTask(unsigned interval, void (*callback)());
+void InitTimerTask(void (*callback)());
 
 
 //-----------------------------------------------------------------------------
@@ -26,9 +26,11 @@ volatile unsigned long oneShot[NumOneShot];
 //  Free-running timers:
 //-----------------------------------------------------------------------------
 
+#define Seconds(s) ((unsigned)(100.0 * (s)))    // convert seconds to 10ms ticks
+
 struct FreeRunningStruct {
-    const unsigned char reload;
-    unsigned char count;
+    const unsigned reload;
+    unsigned count;
     bool state;
 };
 
@@ -39,8 +41,9 @@ typedef enum {
     NumFreeRunning
 } FreeRunningTimerID;
 
-volatile struct FreeRunningStruct freeRunning[] = {    // 0.1 second increments
-    {50}, {10}
+
+volatile struct FreeRunningStruct freeRunning[] = {
+    { Seconds(5.0) }, { Seconds(1.0) }
 };
 
 #define NumFreeRunning (sizeof freeRunning / sizeof(struct FreeRunningStruct))
