@@ -64,39 +64,39 @@ exitStatus BatteryPresentQ (float busV)
 
 exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor)
 {
-    float closeEnough = 0.01;
+    exitStatus bailRC;
+    unsigned long timeStamp;
+    const float closeEnough = 0.01;
     float shuntMA, busV, ambientTemp, batteryTemp;
-    unsigned long timeStamp, lastTime = 0;
-    unsigned long endTime = millis() + (minutes * 60 * 1000UL);
 
     SetVoltage(targetV - 0.050);
-    while ((timeStamp = millis()) < endTime) {
+    StartTimer(MaxChargeTimer, (minutes * 60.0));
+
+    while (IsRunning(MaxChargeTimer)) {
+        timeStamp = millis();
         Monitor(&shuntMA, &busV);
         GetTemperatures(&batteryTemp, &ambientTemp);
+        bailRC = BailOutQ(busV, batteryTemp);
 
-        if (batteryTemp > 44.9)            return MaxTemp;
-        if (busV > MaxV)             return MaxV;
-        if (!PowerGoodQ())           return PBad;
-        if (Serial.available() > 0)  return ConsoleInterrupt;
-        if (shuntMA > mAmpCeiling)   return MaxAmp;
-        if (shuntMA < mAmpFloor)     return MinAmp;
+        if (bailRC != 0)
+            return bailRC;
+        if (shuntMA > mAmpCeiling)
+            return MaxAmp;
+        if (shuntMA < mAmpFloor)
+            return MinAmp;
 
         while (busV < (targetV - closeEnough)) {
             if (NudgeVoltage(+1) == 0)
                 return BoundsCheck;
             Monitor(&shuntMA, &busV);
         }
-
         while (busV > (targetV + closeEnough)) {
             if (NudgeVoltage(-1) == 0)
                 return BoundsCheck;
             Monitor(&shuntMA, &busV);
         }
-
-        if ((timeStamp - lastTime) > reportInterval) {
+        if (HasExpired(ReportTimer))
             CTReport(typeCVRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
-            lastTime = timeStamp;
-        }
 
     }
     return MaxTime;
@@ -135,29 +135,25 @@ exitStatus ThermMonitor (int minutes)
 exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
 {
     float shuntMA, busV;
-    unsigned long endTime, currentTime, reportTime = 0;
 
     PowerOff();    // Ensure TLynx power isn't just running down the drain.
 
-    Monitor(&shuntMA, &busV);
-
     HeavyOn();
+    Monitor(&shuntMA, &busV);
     while (busV > thresh1) {
         if (Serial.available() > 0) {
             HeavyOff();
             Printf("{9,-1,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
-        if ((currentTime = millis()) > reportTime) {
-            reportTime = currentTime + reportInterval;
+        if (HasExpired(ReportTimer))
             Printf("{9,0,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
-        }
+
         Monitor(&shuntMA, &busV);
     }
     HeavyOff();
 
     StartTimer(ReboundTimer, reboundTime);
-    ResyncTimer(ReportTimer);
     while (IsRunning(ReboundTimer)) {
         if (HasExpired(ReportTimer)) {
             Monitor(&shuntMA, &busV);
@@ -166,22 +162,22 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
     }
 
     LightOn();
+    Monitor(&shuntMA, &busV);
     while (busV > thresh2) {
         if (Serial.available() > 0) {
             LightOff();
             Printf("{9,-1,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
-        if ((currentTime = millis()) > reportTime) {
-            reportTime = currentTime + reportInterval;
+        if (HasExpired(ReportTimer))
             Printf("{9,2,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
-        }
+
         Monitor(&shuntMA, &busV);
     }
     LightOff();
 
     Printf("{9,9,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
-    Printx("Discharge Done");
+    Printx("Discharge Done\n");
     return Success;
 
 }
