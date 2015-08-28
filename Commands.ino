@@ -79,15 +79,15 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
 
 
 exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Volts, arg 2 is minutes
-{                           // ..on arg3 constantvoltage bails at or below this value
+{                                  // ..on arg3 constantvoltage bails at or below this value
     float shuntMA, busV, targetV, mAmpFloor;
     int minutes;
     unsigned long startRecordsTime;
     exitStatus rc;
 
-    targetV =    (*++args == NULL) ? SetVLow  : constrain(atof(*args), SetVLow, SetVHigh);
-    minutes =     (*++args == NULL) ? 10      : constrain(atoi(*args), 1, 1440);
-    mAmpFloor = (*++args == NULL) ?  5.0      : constrain(atof(*args), 1, 4000);  // max safes shunt resistor
+    targetV =   (*++args == NULL) ? SetVLow   : constrain(atof(*args), SetVLow, SetVHigh);
+    minutes =   (*++args == NULL) ? 10        : constrain(atoi(*args), 1, 1440);
+    mAmpFloor = (*++args == NULL) ? 5.0       : constrain(atof(*args), 1, 4000);  // max safes shunt resistor
 
     Monitor(&shuntMA, &busV);
     if (busV < 0.1) {                                   // don't power up
