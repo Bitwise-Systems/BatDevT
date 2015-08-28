@@ -57,7 +57,7 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
     Monitor(&shuntMA, NULL);
     Monitor(NULL, &busV);                                     // <<testing initial high voltage>>
 
-    Printf("(* Predicted end-of-ramp voltage: %f *)\n", (targetMA * busV) / shuntMA);
+//  Printf("(* Predicted end-of-ramp voltage: %f *)\n", (targetMA * busV) / shuntMA);
 
     Printf("just after setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
     if (StatusQ() == 1)  {       // if so, could be lack of external power
