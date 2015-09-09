@@ -36,6 +36,7 @@
 #define typeCVRecord        1      // Use CTRecord format
 #define typeDetectRecord    2
 #define typeThermRecord     3      // Use CTRecord format
+#define typeRampUpRecord    4      // Used in ConstantCurrent during ramp-up phase
 #define typeDischargeRecord 9      // Use CTRecord format, not written yet
 #define typeEndRecord       10     // Elapsed time, exitStatus
 #define typeProvEndRecord   11     // not written yet, use EndRecord format
@@ -49,7 +50,8 @@
 
 //-------------globals-------------
 
-char battID = 'X';
+char battID[20] = "<undefined>";
+
 
 char printbuf[85];                 // Print buffer used by Printf
 
@@ -111,8 +113,8 @@ void setup (void)
     InitTimerTask(RefreshTemperatures);
     InitLoads();
     SetPGA(8);
-    Printf("BattID: %c\n", toupper(battID));
-
+    SetID(NULL);    // Print the default battery ID as a
+                    // reminder to set the actual one.
 }
 
 

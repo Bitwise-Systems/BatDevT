@@ -80,12 +80,12 @@ void CTReport (int type, float shuntMA, float busV, float thermLoad, float therm
 
 void PrintCCInfo (float targetMA, int minutes)
 {
-    Printf("runParams[%%runNum]:=\"BattID=%c, targetmA=%1.1f, minutes=%d, band=+%d/-%d\";\n", battID, targetMA, minutes, (int)bandPlus, (int)bandMinus);
+    Printf("runParams[%%runNum]:=\"BattID=%s, targetmA=%1.1f, minutes=%d, band=+%d/-%d\";\n", battID, targetMA, minutes, (int)bandPlus, (int)bandMinus);
 }
 
 void PrintCVInfo (float targetV, int minutes)
 {
-    Printf("runParams[%%runNum]:=\"BattID=%c, targetV=%1.1f, minutes=%d\";\n", battID, targetV, minutes);
+    Printf("runParams[%%runNum]:=\"BattID=%s, targetV=%1.1f, minutes=%d\";\n", battID, targetV, minutes);
 }
 
 void NudgeReport (int nudgeCount, int potLevelBN, unsigned long timestamp)

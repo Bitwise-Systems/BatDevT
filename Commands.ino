@@ -370,12 +370,14 @@ exitStatus ReportHeats (char **args)
 }
 
 
-exitStatus SetID (char **args)   // would rather this do strings than a single char....
-{                // doesn't constrain to alpha chars
-    battID = (*++args == NULL) ? battID : **args;
-    battID = toupper(battID);
-    Printf("BattID: %c\n", battID);
+exitStatus SetID (char **args)
+{
+    if (*++args != NULL)
+        strncpy(battID, *args, (sizeof battID) - 1);
+
+    Printf("Battery ID: %s\n", battID);
     return Success;
+
 }
 
 // function SetPrintFormat is under 'Print' tab
