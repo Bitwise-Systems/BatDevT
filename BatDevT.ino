@@ -12,8 +12,8 @@
 //                 Update eepromhelp.ino
 //
 //    Version 4.2: Inaugurate use of new virtual timer package
-//            4.2b  change timer lowest interval from 100mS to 10mS
-//                  new constantcurrent with ramp-up
+//
+//
 
 #include <EEPROM.h>
 #include <DallasTemperature.h>
@@ -36,7 +36,8 @@
 #define typeCVRecord        1      // Use CTRecord format
 #define typeDetectRecord    2
 #define typeThermRecord     3      // Use CTRecord format
-#define typeDischargeRecord 9      // DisRecord format: shuntMA, busV, millisecs
+#define typeRampUpRecord    4      // Used in ConstantCurrent during ramp-up phase
+#define typeDischargeRecord 9      // Use CTRecord format, not written yet
 #define typeEndRecord       10     // Elapsed time, exitStatus
 #define typeProvEndRecord   11     // not written yet, use EndRecord format
 #define typeJugsRecord      12     // not written yet
@@ -49,7 +50,8 @@
 
 //-------------globals-------------
 
-char battID = 'X';
+char battID[20] = "<undefined>";
+
 
 char printbuf[85];                 // Print buffer used by Printf
 
@@ -111,8 +113,8 @@ void setup (void)
     InitTimerTask(RefreshTemperatures);
     InitLoads();
     SetPGA(8);
-    Printf("BattID: %c\n", toupper(battID));
-
+    SetID(NULL);    // Print the default battery ID as a
+                    // reminder to set the actual one.
 }
 
 

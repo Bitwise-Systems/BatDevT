@@ -7,6 +7,7 @@
 //    . Removed nudge testing code.
 //    . Switched timer management over to virtual timer package.
 //    . Ramp-up now occurs separately from maintenance loop.
+//    . Removed 10-minute extension timer from end-of-charge detector.
 //
 //---------------------------------------------------------------------------------------
 
@@ -37,14 +38,14 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
             return bailRC;
 
         else if (shuntMA > lowerTarget) {
-            CTReport(666, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
             break;
         }
         else if (NudgeVoltage(+1) == 0)
             return BoundsCheck;
 
         if (HasExpired(ReportTimer))
-            CTReport(666, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
 
     }   // Drop thru only if we ramped up to 'lowerTarget', or ran out of time trying
 
@@ -52,8 +53,8 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
         timeStamp = millis();
         Monitor(&shuntMA, &busV);
         GetTemperatures(&batteryTemp, &ambientTemp);
-
         bailRC = BailOutQ(busV, batteryTemp);
+
         if (bailRC != 0)
             return bailRC;
 
