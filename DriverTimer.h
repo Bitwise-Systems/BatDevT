@@ -13,7 +13,6 @@ void InitTimerTask(void (*callback)());
 typedef enum {
     MaxChargeTimer,     // Used in ConstantCurrent et. al. to limit charge time
     ArmDetectorTimer,   // Used to prevent premature arming of dip detector
-    ExtensionTimer,     // Used temporarily to extend charging beyond dip detection
     ReboundTimer,       // Used to control rebound time in discharger
 
     NumOneShot          // Additional timer ID's go before this line

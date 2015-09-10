@@ -53,6 +53,13 @@ void EndRecords (unsigned long startingTime, exitStatus rc)
     Printx("}};\n");
 }
 
+
+void DisReport (float shuntMA, float busV, unsigned long millisecs)
+{  
+    Printf("{9, %1.3f, %1.4f, %lu},\n", shuntMA, busV, millisecs);    
+}    
+
+
 void CTReport (int type, float shuntMA, float busV, float thermLoad, float thermAmbient, unsigned long millisecs)
 {
 #define ctr_variables type, shuntMA, busV, thermLoad, thermAmbient, millisecs

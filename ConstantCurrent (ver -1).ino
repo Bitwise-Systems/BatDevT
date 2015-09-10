@@ -6,17 +6,18 @@
 //    . Put bail-out tests into a separate routine.
 //    . Removed nudge testing code.
 //    . Switched timer management over to virtual timer package.
-//    . Ramp-up now occurs separately from maintenance loop.
 //
 //---------------------------------------------------------------------------------------
 
+#define inarow 25       // allowed number of subsequent up-nudges before battery condition is checked
 
 exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
 {
-    exitStatus bailRC;
+    exitStatus bailRC = Success;
     unsigned long timeStamp;
     float shuntMA, busV, batteryTemp, ambientTemp;
     float upperBound, lowerBound, upperTarget, lowerTarget;
+    byte n;
 
     upperBound  = targetMA + bandPlus;
     lowerBound  = targetMA - bandMinus;
@@ -27,40 +28,21 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
     ResyncTimer(ReportTimer);
     StartTimer(MaxChargeTimer, (durationM * 60.0));
 
-    while (IsRunning(MaxChargeTimer)) {     // Single-step ramp-up
-        timeStamp = millis();
-        Monitor(&shuntMA, &busV);
-        GetTemperatures(&batteryTemp, &ambientTemp);
-        bailRC = BailOutQ(busV, batteryTemp);
-
-        if (bailRC != 0)
-            return bailRC;
-
-        else if (shuntMA > lowerTarget) {
-            CTReport(666, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
-            break;
-        }
-        else if (NudgeVoltage(+1) == 0)
-            return BoundsCheck;
-
-        if (HasExpired(ReportTimer))
-            CTReport(666, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
-
-    }   // Drop thru only if we ramped up to 'lowerTarget', or ran out of time trying
-
-    while (IsRunning(MaxChargeTimer)) {     // Maintain constant current
+    while (IsRunning(MaxChargeTimer)) {
         timeStamp = millis();
         Monitor(&shuntMA, &busV);
         GetTemperatures(&batteryTemp, &ambientTemp);
 
+        n = 0;
         bailRC = BailOutQ(busV, batteryTemp);
         if (bailRC != 0)
             return bailRC;
 
-        if (shuntMA < lowerBound)        // nudge upwards
+        if (shuntMA < lowerBound)    // nudge upwards
             do {
                 if (NudgeVoltage(+1) == 0)
                     return BoundsCheck;
+                if (++n > inarow) break;        // pop out of long loops for battery checks
                 Monitor(&shuntMA, NULL);
             } while (shuntMA < lowerTarget);
 
@@ -88,12 +70,14 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
 
 int runLength;
 float previousMA;
+boolean extending;        // <<< Temporary: remove when time extension nolonger needed.
 
 void ActivateDetector (void)
 {
     StartTimer(ArmDetectorTimer, (10 * 60.0));    // 10 minutes
     runLength = 0;
     previousMA = 10000.0;
+    extending = false;
 
 }
 
@@ -101,6 +85,9 @@ void ActivateDetector (void)
 boolean FullyCharged (float shuntMA, float tempDifferential)
 {
     float smoothedMA;
+
+    if (extending)
+        return (!IsRunning(ExtensionTimer));
 
     if (IsRunning(ArmDetectorTimer))    // No detectors for 1st ten minutes
         return false;
@@ -113,7 +100,9 @@ boolean FullyCharged (float shuntMA, float tempDifferential)
     previousMA = smoothedMA;
     if (runLength > 12) {
         CTReport(2, shuntMA, 0.0, tempDifferential, 0.0, millis());
-        return true;
+    //  return true;
+        extending = true;                              // <<< Temporary: extend run...
+        StartTimer(ExtensionTimer, 10 * 60.0);         // <<< ...for ten more minutes
     }
     return false;
 
