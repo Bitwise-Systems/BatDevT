@@ -372,7 +372,7 @@ exitStatus ReportHeats (char **args)
 
 exitStatus SetID (char **args)
 {
-    if (*++args != NULL)
+    if ((args != NULL) && (*++args != NULL))
         strncpy(battID, *args, (sizeof battID) - 1);
 
     Printf("Battery ID: %s\n", battID);
