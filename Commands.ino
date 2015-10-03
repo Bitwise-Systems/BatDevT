@@ -198,9 +198,10 @@ exitStatus LoffCmd(char **args)
             Printx("!arg No ");
             break;
         }
-    Printx("load off\n");
+        Printx("load off\n");
     }
-    else Printx("no arg, no action\n");
+    else
+        Printx("no arg, no action\n");
     return Success;
 }
 
@@ -229,9 +230,10 @@ exitStatus LonCmd(char **args)
             Printx("!arg No ");
             break;
         }
-    Printx("load on\n");
+        Printx("load on\n");
     }
-    else Printx("no arg, no action\n");
+    else
+        Printx("no arg, no action\n");
     return Success;
 }
 
