@@ -58,12 +58,12 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
 
         if (bailRC != 0)
             return bailRC;
-            
+
        // if ((IsRunning(OneShotTestTimer)) == false) {   // early success for script testing
        //     Printx("{666, \"Early Success - Testing\"},\n");
        //     PowerOff();
-       //     return Success;    
-       //     }    
+       //     return Success;
+       //     }
 
         if (shuntMA < lowerBound)        // nudge upwards
             do {
@@ -99,6 +99,8 @@ float previousMA;
 
 void ActivateDetector (void)
 {
+    InitSavitzky(&savitskyStructure, dataWindow);
+
     StartTimer(ArmDetectorTimer, (10 * 60.0));    // 10 minutes
     runLength = 0;
     previousMA = 10000.0;
