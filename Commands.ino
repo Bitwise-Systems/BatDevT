@@ -69,7 +69,7 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
     PrintCCInfo (targetMA, minutes);
 
     startRecordsTime = StartRecords();
-    exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);   
+    exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);
     EndRecords(startRecordsTime, exitRC);
     PowerOff();
     SetVoltage(SetVLow);
@@ -128,16 +128,16 @@ exitStatus DischargeCmd (char **args)
     float thresh1, thresh2;
     unsigned int reboundSecs;
     exitStatus rc;
-    
+
     thresh1 =     (*++args == NULL) ? 0.8 : constrain(atof(*args), 0.5, 1.4);
     thresh2 =     (*++args == NULL) ? 1.0 : constrain(atof(*args), 0.5, 1.4);
-    reboundSecs = (*++args == NULL) ? 480 : constrain(atoi(*args), 1, 6000); 
+    reboundSecs = (*++args == NULL) ? 480 : constrain(atoi(*args), 1, 6000);
     PrintDischargeStart();
     rc = Discharge(thresh1, thresh2, reboundSecs);
     Printx("{666}};\n");                 // close off report lists for m'matica
     Printx("(* Discharge_Done *)\n\n");
     if (scriptrunning == false)  Printx("~");
-    return rc;    
+    return rc;
 }
 
 
@@ -228,7 +228,7 @@ exitStatus LonCmd(char **args)
           default:
             Printx("!arg No ");
             break;
-        } 
+        }
     Printx("load on\n");
     }
     else Printx("no arg, no action\n");
@@ -336,7 +336,7 @@ exitStatus ScriptCmd (char **args)
                                                                   // std, 0.8-1.0-480
     //static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};   //TESTING
     //static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};  //TESTING
-    
+
     scriptrunning = true;
 
     rc = DischargeCmd(dischCmd);
@@ -373,11 +373,11 @@ exitStatus ScriptCmd (char **args)
     Printx("~");
     return Success;
 
-}    
+}
 
 exitStatus SetID (char **args)
 {
-    if ((args != NULL) && (*++args != NULL)) 
+    if ((args != NULL) && (*++args != NULL))
         strncpy(battID, *args, (sizeof battID) - 1);
 
     Printf("Battery ID: %s\n", battID);
