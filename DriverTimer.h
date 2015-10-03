@@ -14,6 +14,7 @@ typedef enum {
     MaxChargeTimer,     // Used in ConstantCurrent et. al. to limit charge time
     ArmDetectorTimer,   // Used to prevent premature arming of dip detector
     ReboundTimer,       // Used to control rebound time in discharger
+    OneShotTestTimer,   // variable-period timer for testing
 
     NumOneShot          // Additional timer ID's go before this line
 } OneShotTimerID;
@@ -36,13 +37,14 @@ struct FreeRunningStruct {
 typedef enum {
     ReportTimer,        // 5-second report timer
     PulseTimer,         // 1-second charging pulse timer
+    IRTimer,            // 12-second 'low' period for internal resistance
 
     NumFreeRunning
 } FreeRunningTimerID;
 
 
 volatile struct FreeRunningStruct freeRunning[] = {
-    { Seconds(5.0) }, { Seconds(1.0) }
+    { Seconds(5.0) }, { Seconds(1.0) }, { Seconds(12.0) }
 };
 
 #define NumFreeRunning (sizeof freeRunning / sizeof(struct FreeRunningStruct))

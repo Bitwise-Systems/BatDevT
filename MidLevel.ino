@@ -135,29 +135,36 @@ exitStatus ThermMonitor (int minutes)
 exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
 {
     float shuntMA, busV;
+    //unsigned long start = millis();
 
     PowerOff();    // Ensure TLynx power isn't just running down the drain.
 
-    HeavyOn();
+   // HeavyOn();
+    MediumOn();                  // reduce load to approx that of standalone discharger
+    LightOn();
     Monitor(&shuntMA, &busV);
     while (busV > thresh1) {
         if (Serial.available() > 0) {
-            HeavyOff();
-            Printf("{9,-1,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
+            // HeavyOff();
+            MediumOff();
+            LightOff();
+            DisReport(shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
         if (HasExpired(ReportTimer))
-            Printf("{9,0,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
+            DisReport(shuntMA, busV, millis());
 
         Monitor(&shuntMA, &busV);
     }
-    HeavyOff();
+    // HeavyOff();
+    MediumOff();
+    LightOff();
 
-    StartTimer(ReboundTimer, reboundTime);
+    StartTimer(ReboundTimer, reboundTime);   // mmm, no console escape during rebound...
     while (IsRunning(ReboundTimer)) {
         if (HasExpired(ReportTimer)) {
             Monitor(&shuntMA, &busV);
-            Printf("{9,1,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
+            DisReport(shuntMA, busV, millis());
         }
     }
 
@@ -166,20 +173,27 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
     while (busV > thresh2) {
         if (Serial.available() > 0) {
             LightOff();
-            Printf("{9,-1,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
+            DisReport(shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
         if (HasExpired(ReportTimer))
-            Printf("{9,2,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
+            DisReport(shuntMA, busV, millis());
 
         Monitor(&shuntMA, &busV);
     }
+    
     LightOff();
+        StartTimer(ReboundTimer, reboundTime);   // mmm, no console escape during rebound...
+        while (IsRunning(ReboundTimer)) {        // add'l rebound for following scripted cmds
+            if (HasExpired(ReportTimer)) {
+                Monitor(&shuntMA, &busV);
+                DisReport(shuntMA, busV, millis());
+        }
+    }
 
-    Printf("{9,9,%1.1f,%1.4f,%lu},\n", shuntMA, busV, millis());
-    Printx("Discharge Done\n");
+    DisReport(shuntMA, busV, millis());
+    
     return Success;
-
 }
 
 
@@ -187,7 +201,7 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
 //    CoolDown  --
 //---------------------------------------------------------------------------------------
 
-exitStatus CoolDown (unsigned durationM)
+exitStatus CoolDown (unsigned int durationM)
 {
     float shuntMA, busV, batteryTemp, ambientTemp;
 

@@ -34,7 +34,7 @@
 
 #define typeCCRecord        0      // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
 #define typeCVRecord        1      // Use CTRecord format
-#define typeDetectRecord    2
+#define typeDetectRecord    2      // Dip Detected; CTRecord format
 #define typeThermRecord     3      // Use CTRecord format
 #define typeRampUpRecord    4      // Used in ConstantCurrent during ramp-up phase
 #define typeDischargeRecord 9      // Use CTRecord format, not written yet
@@ -52,8 +52,9 @@
 
 char battID[20] = "<undefined>";
 
-
-char printbuf[85];                 // Print buffer used by Printf
+char printbuf[95];                 // Print buffer used by Printf
+                                   // bumped from 85 to 95 to handle platform info
+boolean scriptrunning = false;     // regulates issuance of '~' to close external records file                                  
 
 typedef struct DispatchTable {
     const char *command;           // Command name
@@ -66,7 +67,6 @@ const struct DispatchTable commandTable[] = {
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
     { "ccd",        ccdCmd          },
-    { "cpr",        cvCPR           },
     { "cv",         cvCmd           },
     { "d",          DischargeCmd    },
     { "form",       SetPrintFormat  },
@@ -85,6 +85,7 @@ const struct DispatchTable commandTable[] = {
 //  { "rate",       ChargeRateCmd   },
     { "ram",        FreeRam         },
 //  { "s",          Sleep219        },
+    { "script",     ScriptCmd       },
     { "setpga",     PgaCmd          },
     { "tell",       Report          },
 //  { "trial",      ConstCurrTrial  },
@@ -113,6 +114,7 @@ void setup (void)
     InitTimerTask(RefreshTemperatures);
     InitLoads();
     SetPGA(8);
+    FreeRam(NULL);      // keep tabs on amount of free ram
     SetID(NULL);    // Print the default battery ID as a
                     // reminder to set the actual one.
 }
