@@ -53,8 +53,7 @@ void EndRecords (unsigned long startingTime, exitStatus rc)
     Printx("}};\n\n");
 }
 
-<<<<<<< HEAD
-=======
+
 void PrintDischargeStart (void)
 {
     float busV;
@@ -63,7 +62,7 @@ void PrintDischargeStart (void)
     Printf("dischargeData[%%runNum]:={");                // start records
     //IRreport(InternalResistance());
 }
->>>>>>> 520724dd604b35027790f7e69151be7cb6e7f2f8
+
 
 void DisReport (float shuntMA, float busV, unsigned long millisecs)
 {  
