@@ -43,8 +43,8 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
     unsigned long startRecordsTime;
     exitStatus exitRC = Success;
 
-    targetMA =    (*++args == NULL) ? 100        : constrain(atoi(*args), 0, 4000);  // max 4A to protect 2W .1ohm shunt resistor
-    minutes =     (*++args == NULL) ? 10         : constrain(atoi(*args), 1, 1440);    //..4A x .4V drop = 1.6W
+    targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);  // max 4A to protect 2W .1ohm shunt resistor
+    minutes =     (*++args == NULL) ? 540         : constrain(atoi(*args), 1, 1440);    //..4A x .4V drop = 1.6W
     voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
 
     Monitor(NULL, &busV);
@@ -61,6 +61,7 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
 
     Printf("just after setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
     if (StatusQ() == 1)  {       // if so, could be lack of external power
+        PowerOff();
         Printx("No external power, exiting\n");
         return DiodeTrip;
     }
@@ -68,12 +69,12 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
     PrintCCInfo (targetMA, minutes);
 
     startRecordsTime = StartRecords();
-    exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);   //testing Mikey's cc
+    exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);
     EndRecords(startRecordsTime, exitRC);
     PowerOff();
     SetVoltage(SetVLow);
    // CoolDown(15);
-    Printx("~");
+    if (scriptrunning == false) Printx("~");
     return exitRC;
 }
 
@@ -122,72 +123,21 @@ exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Vol
 }
 
 
-exitStatus cvCPR (char **args)          // bring a battery back from the dead
-{
-    exitStatus rc;
-
-    for (int i = 0; i < 4; i++) {
-        rc = ConstantVoltage(1.0, 5, 2);
-        if (rc = MaxTime)
-            continue;
-        else if (rc = MinAmp)
-            break;
-        else {
-            ReportExitStatus(rc);
-            return ParameterError;
-        }
-    }
-    for (int i = 0; i < 4; i++) {
-        rc = ConstantVoltage(1.1, 10, 2);
-        if (rc = MaxTime)
-            continue;
-        else if (rc = MinAmp)
-            break;
-        else {
-            ReportExitStatus(rc);
-            return ParameterError;
-        }
-    }
-    for (int i = 0; i < 4; i++) {
-        rc = ConstantVoltage(1.2, 15, 2);
-        if (rc = MaxTime)
-            continue;
-        else if (rc = MinAmp)
-            break;
-        else {
-            ReportExitStatus(rc);
-            return ParameterError;
-        }
-    }
-    for (int i = 0; i < 4; i++) {
-        rc = ConstantVoltage(1.3, 20, 10);
-        if (rc = MaxTime)
-            continue;
-        else if (rc = MinAmp)
-            break;
-        else {
-            ReportExitStatus(rc);
-            return ParameterError;
-        }
-    }
-    for (int i = 0; i < 4; i++) {
-        rc = ConstantVoltage(1.4, 20, 20);
-        if (rc = MaxTime)
-            continue;
-        else if (rc = MinAmp)
-            break;
-        else {
-            ReportExitStatus(rc);
-            return ParameterError;
-        }
-    }
-    return Success;
-}
-
-
 exitStatus DischargeCmd (char **args)
 {
-    return Discharge(0.8, 1.0, 480);    // 8 minute (480 seconds) rebound time
+    float thresh1, thresh2;
+    unsigned int reboundSecs;
+    exitStatus rc;
+
+    thresh1 =     (*++args == NULL) ? 0.8 : constrain(atof(*args), 0.5, 1.4);
+    thresh2 =     (*++args == NULL) ? 1.0 : constrain(atof(*args), 0.5, 1.4);
+    reboundSecs = (*++args == NULL) ? 480 : constrain(atoi(*args), 1, 6000);
+    PrintDischargeStart();
+    rc = Discharge(thresh1, thresh2, reboundSecs);
+    Printx("{666}};\n");                 // close off report lists for m'matica
+    Printx("(* Discharge_Done *)\n\n");
+    if (scriptrunning == false)  Printx("~");
+    return rc;
 }
 
 
@@ -226,56 +176,64 @@ exitStatus iGetCmd (char **args)
 
 exitStatus LoffCmd(char **args)
 {
-    switch (**++args) {
-    case 'h':
-        HeavyOff();
-        Printx("hi ");
-        break;
-    case 'm':
-        MediumOff();
-        Printx("med ");
-        break;
-    case 'l':
-        LightOff();
-        Printx("low ");
-        break;
-    case 'b':
-        UnLoadBus();
-        Printx("bus");
-        break;
-    default:
-        Printx("!arg No ");
-        break;
+    if (*++args != NULL) {
+        switch (**args) {
+          case 'h':
+            HeavyOff();
+            Printx("hi ");
+            break;
+          case 'm':
+            MediumOff();
+            Printx("med ");
+            break;
+          case 'l':
+            LightOff();
+            Printx("low ");
+            break;
+          case 'b':
+            UnLoadBus();
+            Printx("bus");
+            break;
+          default:
+            Printx("!arg No ");
+            break;
+        }
+        Printx("load off\n");
     }
-    Printx("load off\n");
+    else
+        Printx("no arg, no action\n");
     return Success;
 }
 
 
 exitStatus LonCmd(char **args)
 {
-    switch (**++args) {
-    case 'h':
-        HeavyOn();
-        Printx("hi ");
-        break;
-    case 'm':
-        MediumOn();
-        Printx("med ");
-        break;
-    case 'l':
-        LightOn();
-        Printx("low ");
-        break;
-    case 'b':
-        LoadBus();
-        Printx("bus");
-        break;
-    default:
-        Printx("!arg No ");
-        break;
+    if (*++args != NULL) {
+        switch (**++args) {
+          case 'h':
+            HeavyOn();
+            Printx("hi ");
+            break;
+          case 'm':
+            MediumOn();
+            Printx("med ");
+            break;
+          case 'l':
+            LightOn();
+            Printx("low ");
+            break;
+          case 'b':
+            LoadBus();
+            Printx("bus");
+            break;
+          default:
+            Printx("!arg No ");
+            break;
+        }
+        Printx("load on\n");
     }
-    Printx("load on\n");
+    else
+        Printx("no arg, no action\n");
     return Success;
 }
 
@@ -370,9 +328,58 @@ exitStatus ReportHeats (char **args)
 }
 
 
+exitStatus ScriptCmd (char **args)
+{
+    exitStatus rc;
+    static char *chargeCmd[] = {"ccd","400","540","1.7", NULL};   // mA, minutes, upper volt limit
+                                                                  // std, 400-540-1.68
+    static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
+                                                                  //..lower limit, rebound seconds
+                                                                  // std, 0.8-1.0-480
+    //static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};   //TESTING
+    //static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};  //TESTING
+
+    scriptrunning = true;
+
+    rc = DischargeCmd(dischCmd);
+    if (rc != Success) {
+        scriptrunning = false;
+        Printx("Premature exit from 1st discharge~\n");
+        return rc;
+    }
+    rc = ccdCmd(chargeCmd);
+    if (rc != Success) {
+        scriptrunning = false;
+        Printx("Premature exit from constant charge\n~");
+        return rc;
+    }
+    rc = DischargeCmd(dischCmd);
+    if (rc != Success) {
+        scriptrunning = false;
+        Printx("Premature exit from discharge\n~");
+        return rc;
+    }
+    rc = ccdCmd(chargeCmd);
+    if (rc != Success) {
+        scriptrunning = false;
+        Printx("Premature exit from constant charge\n~");
+        return rc;
+    }
+   // rc = PulseChargeCmd(chargeCmd);
+   // if (rc != Success) {
+     //  scriptrunning = false;
+   //     Printx("Premature exit from pulsed charge\n~");
+   //     return rc;
+   // }
+    scriptrunning = false;
+    Printx("~");
+    return Success;
+
+}
+
 exitStatus SetID (char **args)
 {
-    if (*++args != NULL)
+    if ((args != NULL) && (*++args != NULL))
         strncpy(battID, *args, (sizeof battID) - 1);
 
     Printf("Battery ID: %s\n", battID);

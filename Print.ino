@@ -50,9 +50,20 @@ void EndRecords (unsigned long startingTime, exitStatus rc)
 
     Printf("{%d, \"%d mins %d secs elapsed\", \"Pot: %d\", ", typeEndRecord, minutes, seconds, GetPotLevel());
     ReportExitStatus(rc);
-    Printx("}};\n");
+    Printx("}};\n\n");
 }
 
+<<<<<<< HEAD
+=======
+void PrintDischargeStart (void)
+{
+    float busV;
+    Monitor(NULL, &busV);
+    Printf("runParams[%%runNum]:=\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\";\n", battID, busV);  // discharge info
+    Printf("dischargeData[%%runNum]:={");                // start records
+    //IRreport(InternalResistance());
+}
+>>>>>>> 520724dd604b35027790f7e69151be7cb6e7f2f8
 
 void DisReport (float shuntMA, float busV, unsigned long millisecs)
 {  
@@ -87,12 +98,12 @@ void CTReport (int type, float shuntMA, float busV, float thermLoad, float therm
 
 void PrintCCInfo (float targetMA, int minutes)
 {
-    Printf("runParams[%%runNum]:=\"BattID=%s, targetmA=%1.1f, minutes=%d, band=+%d/-%d\";\n", battID, targetMA, minutes, (int)bandPlus, (int)bandMinus);
+    Printf("runParams[%%runNum]:=\"BattID=%s, targetmA=%1.1f, minutes=%d, band=+%d/-%d, Platform=Integrated\";\n", battID, targetMA, minutes, (int)bandPlus, (int)bandMinus);
 }
 
 void PrintCVInfo (float targetV, int minutes)
 {
-    Printf("runParams[%%runNum]:=\"BattID=%s, targetV=%1.1f, minutes=%d\";\n", battID, targetV, minutes);
+    Printf("runParams[%%runNum]:=\"BattID=%s, targetV=%1.1f, minutes=%d, Platform=Integrated\";\n", battID, targetV, minutes);
 }
 
 void NudgeReport (int nudgeCount, int potLevelBN, unsigned long timestamp)

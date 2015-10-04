@@ -1,8 +1,5 @@
 //----------------------------------------------------------------------------------------
 //    Savitzky.ino  --  Savitzky-Golay smoothing filter
-//
-//    Version 2: Window contents can be flushed & buffering restarted
-//
 //----------------------------------------------------------------------------------------
 
 #include <avr/pgmspace.h>
@@ -11,35 +8,35 @@
 
 #if WindowSize == 5
   const float PROGMEM h = 35.0;
-  const float PROGMEM c[] = {17.0, 12.0, -3.0};
+  const float PROGMEM c[] = {17.0, 12.0, -3.0}; 
 
 #elif WindowSize == 7
   const float PROGMEM h = 21.0;
-  const float PROGMEM c[] = {7.0, 6.0, 3.0, -2.0};
+  const float PROGMEM c[] = {7.0, 6.0, 3.0, -2.0}; 
 
 #elif WindowSize == 9
   const float PROGMEM h = 231.0;
-  const float PROGMEM c[] = {59.0, 54.0, 39.0, 14.0, -21.0};
+  const float PROGMEM c[] = {59.0, 54.0, 39.0, 14.0, -21.0}; 
 
 #elif WindowSize == 11
   const float PROGMEM h = 429.0;
-  const float PROGMEM c[] = {89.0, 84.0, 69.0, 44.0, 9.0, -36.0};
+  const float PROGMEM c[] = {89.0, 84.0, 69.0, 44.0, 9.0, -36.0}; 
 
 #elif WindowSize == 13
   const float PROGMEM h = 143.0;
-  const float PROGMEM c[] = {25.0, 24.0, 21.0, 16.0, 9.0, 0.0, -11.0};
+  const float PROGMEM c[] = {25.0, 24.0, 21.0, 16.0, 9.0, 0.0, -11.0}; 
 
 #elif WindowSize == 15
   const float PROGMEM h = 1105.0;
-  const float PROGMEM c[] = {167.0, 162.0, 147.0, 122.0, 87.0, 42.0, -13.0, -78.0};
+  const float PROGMEM c[] = {167.0, 162.0, 147.0, 122.0, 87.0, 42.0, -13.0, -78.0}; 
 
 #elif WindowSize == 17
   const float PROGMEM h = 323.0;
-  const float PROGMEM c[] = {43.0, 42.0, 39.0, 34.0, 27.0, 18.0, 7.0, -6.0, -21.0};
+  const float PROGMEM c[] = {43.0, 42.0, 39.0, 34.0, 27.0, 18.0, 7.0, -6.0, -21.0}; 
 
 #elif WindowSize == 19
   const float PROGMEM h = 2261.0;
-  const float PROGMEM c[] = {269.0, 264.0, 249.0, 224.0, 189.0, 144.0, 89.0, 24.0, -51.0, -136.0};
+  const float PROGMEM c[] = {269.0, 264.0, 249.0, 224.0, 189.0, 144.0, 89.0, 24.0, -51.0, -136.0}; 
 
 #elif WindowSize == 21
   const float PROGMEM h = 3059.0;
@@ -60,14 +57,22 @@
 
 
 //----------------------------------------------------------------------------------------
-//  InitSavitzky --
+//  FetchPair -- Return the sum of the window elements offset n cells to the left
+//               and right of center.  If n == 0, just return the center element.
 //----------------------------------------------------------------------------------------
 
-void InitSavitzky (struct SavStruct *s, float *windowBuffer)
+static float FetchPair (int n, struct SavStruct *s)
 {
-    (*s).index = 0;
-    (*s).count = 1;
-    (*s).window = windowBuffer;
+    int left  = (*s).index - ((WindowSize-1) / 2) - n;    // Compute offsets from center.
+    int right = (*s).index - ((WindowSize-1) / 2) + n;
+
+    if (left < 0)   left += WindowSize;        // Deal with circular buffer wrap issues.
+    if (right < 0)  right += WindowSize;
+
+    if (n == 0)
+        return (*s).window[left];              // Or right. Doesn't matter: they're equal.
+    else
+        return (*s).window[left] + (*s).window[right];
 
 }
 
@@ -82,13 +87,14 @@ void InitSavitzky (struct SavStruct *s, float *windowBuffer)
 float Savitzky (float x, struct SavStruct *s)
 {
     int j;
+    static int n = 1;
     float k, sum = 0.0;
-
+    
     (*s).index = ((*s).index + 1) % WindowSize;    // Slide the window to the right, ...
     (*s).window[(*s).index] = x;                   // ...and append the most recent data.
 
-    if ((*s).count < WindowSize) {    // Return unsmoothed data while window fills up.
-        (*s).count += 1;
+    if (n < WindowSize) {    // Return unsmoothed data while window fills up.
+        n += 1;
         return x;
     } else {
         for (j = 0; j < ((WindowSize+1) / 2); j++) {   // Run the algorithm...
@@ -97,26 +103,5 @@ float Savitzky (float x, struct SavStruct *s)
         }
         return (sum / pgm_read_float_near(&h));
     }
-
-}
-
-
-//----------------------------------------------------------------------------------------
-//  FetchPair -- Return the sum of the window elements offset n cells to the left
-//               and right of center.  If n == 0, just return the center element.
-//----------------------------------------------------------------------------------------
-
-static float FetchPair (byte n, struct SavStruct *s)
-{
-    int left  = (*s).index - ((WindowSize-1) / 2) - n;    // Compute offsets from center.
-    int right = (*s).index - ((WindowSize-1) / 2) + n;
-
-    if (left < 0)   left += WindowSize;        // Deal with circular buffer wrap issues.
-    if (right < 0)  right += WindowSize;
-
-    if (n == 0)
-        return (*s).window[left];              // Or right. Doesn't matter: they're equal.
-    else
-        return (*s).window[left] + (*s).window[right];
 
 }
