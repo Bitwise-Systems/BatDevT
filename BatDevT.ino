@@ -37,6 +37,7 @@
 #define typeDetectRecord    2      // Dip Detected; CTRecord format
 #define typeThermRecord     3      // Use CTRecord format
 #define typeRampUpRecord    4      // Used in ConstantCurrent during ramp-up phase
+#define typePulseRecord     5      // Taken during 'off' pulse while charging    CTRecord format
 #define typeDischargeRecord 9      // Use CTRecord format, not written yet
 #define typeEndRecord       10     // Elapsed time, exitStatus
 #define typeProvEndRecord   11     // not written yet, use EndRecord format
@@ -66,7 +67,8 @@ const struct DispatchTable commandTable[] = {
     { "thermo",     ThermLoop       },  // Temporarily provide access to 'ThermMonitor'
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
-    { "ccd",        ccdCmd          },
+    { "ccd",        ccdCmd          },  // constantcurrent, dual bands
+    { "ccp",        ccpCmd          },  // pulsed version of constantcurrent
     { "cv",         cvCmd           },
     { "d",          DischargeCmd    },
     { "form",       SetPrintFormat  },
@@ -136,6 +138,6 @@ void loop (void)
     rc = (*commandTable[i].handler)(t);    // call command handler
     if (rc != 0) {
         ReportExitStatus(rc);
-        Printx("\n");
+        Printx(" ~\n");                    // sends stop/close to pc file prog
     }
 }

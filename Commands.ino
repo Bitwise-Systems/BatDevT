@@ -57,8 +57,6 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
     Monitor(&shuntMA, NULL);
     Monitor(NULL, &busV);                                     // <<testing initial high voltage>>
 
-//  Printf("(* Predicted end-of-ramp voltage: %f *)\n", (targetMA * busV) / shuntMA);
-
     Printf("just after setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
@@ -66,7 +64,7 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
         return DiodeTrip;
     }
 
-    PrintCCInfo (targetMA, minutes);
+    PrintCCInfo (targetMA, minutes, false);      // false means no pulsing
 
     startRecordsTime = StartRecords();
     exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);
@@ -78,6 +76,45 @@ exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA
     return exitRC;
 }
 
+exitStatus ccpCmd (char **args)     // calls constant current  arg1 is target MA, arg 2 is minutes
+{                                    // calls pulsed version of constantcurrent
+    float shuntMA, busV, voltCeiling;
+    int targetMA, minutes;
+    unsigned long startRecordsTime;
+    exitStatus exitRC = Success;
+
+    targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);  // max 4A to protect 2W .1ohm shunt resistor
+    minutes =     (*++args == NULL) ? 540        : constrain(atoi(*args), 1, 1440);    //..4A x .4V drop = 1.6W
+    voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
+
+    Monitor(NULL, &busV);
+    Printf("just before setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
+    exitRC = BatteryPresentQ(busV);
+    if (exitRC != 0)   return exitRC;
+    SetVoltage(busV + 0.020);      
+    PowerOn();
+    delay(10);
+    Monitor(&shuntMA, NULL);
+    Monitor(NULL, &busV);                                     // <<testing initial high voltage>>
+
+    Printf("just after setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
+    if (StatusQ() == 1)  {       // if so, could be lack of external power
+        PowerOff();
+        Printx("No external power, exiting\n");
+        return DiodeTrip;
+    }
+
+    PrintCCInfo (targetMA, minutes, true);                     // true means pulsing
+
+    startRecordsTime = StartRecords();
+    exitRC = ConstantCurrentPulsed(targetMA, minutes, voltCeiling);
+    EndRecords(startRecordsTime, exitRC);
+    PowerOff();
+    SetVoltage(SetVLow);
+   // CoolDown(15);
+    if (scriptrunning == false) Printx("~");
+    return exitRC;
+}
 
 exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Volts, arg 2 is minutes
 {                                  // ..on arg3 constantvoltage bails at or below this value
@@ -331,6 +368,7 @@ exitStatus ReportHeats (char **args)
 exitStatus ScriptCmd (char **args)
 {
     exitStatus rc;
+    char c;
     static char *chargeCmd[] = {"ccd","400","540","1.7", NULL};   // mA, minutes, upper volt limit
                                                                   // std, 400-540-1.68
     static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
@@ -338,37 +376,48 @@ exitStatus ScriptCmd (char **args)
                                                                   // std, 0.8-1.0-480
     //static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};   //TESTING
     //static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};  //TESTING
+    
+    while (Serial.available() > 0) {
+        c = Serial.read();
+        Serial.println(c);
+    }    
 
     scriptrunning = true;
 
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from 1st discharge~\n");
+        Printx("Premature exit from discharge\n");         // '~' included in non-zero rc handler
         return rc;
     }
     rc = ccdCmd(chargeCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from constant charge\n~");
+        Printx("Premature exit from constant charge\n");
         return rc;
     }
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from discharge\n~");
+        Printx("Premature exit from discharge\n");
         return rc;
     }
-    rc = ccdCmd(chargeCmd);
+    rc = ccpCmd(chargeCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from constant charge\n~");
+        Printx("Premature exit from constant charge\n");
+        return rc;
+    }
+        rc = DischargeCmd(dischCmd);
+    if (rc != Success) {
+        scriptrunning = false;
+        Printx("Premature exit from discharge\n");
         return rc;
     }
    // rc = PulseChargeCmd(chargeCmd);
    // if (rc != Success) {
      //  scriptrunning = false;
-   //     Printx("Premature exit from pulsed charge\n~");
+   //     Printx("Premature exit from pulsed charge\n");
    //     return rc;
    // }
     scriptrunning = false;

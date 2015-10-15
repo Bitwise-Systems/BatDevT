@@ -58,7 +58,8 @@ void PrintDischargeStart (void)
 {
     float busV;
     Monitor(NULL, &busV);
-    Printf("runParams[%%runNum]:=\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\";\n", battID, busV);  // discharge info
+    Printf("runParams[%%runNum]:=\"BattID=%s, StartVoltage=%1.3f, ", battID, busV);  // discharge inf
+    Printx("Platform=Integrated\";\n");
     Printf("dischargeData[%%runNum]:={");                // start records
     //IRreport(InternalResistance());
 }
@@ -78,16 +79,16 @@ void CTReport (int type, float shuntMA, float busV, float thermLoad, float therm
     case NoPrint:
         break;
     case Console:
-        Printf("type: %d  shuntMA: %1.1f  busV: %1.4f  Load: %1.4f  Amb: %1.4f  mSecs: %lu\n", ctr_variables);
+        Printf("type: %d  shuntMA: %1.3f  busV: %1.4f  Load: %1.4f  Amb: %1.4f  mSecs: %lu\n", ctr_variables);
         break;
     case Math:
-        Printf("{%d,%1.1f,%1.4f,%1.4f,%1.4f,%lu},\n", ctr_variables);
+        Printf("{%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu},\n", ctr_variables);
         break;
     case DataBox:
-        Printf("0:%d1:1.1f\n2:%1.4f\n3:%1.4f\n4:%1.4f\n5:%lu\n", ctr_variables);
+        Printf("0:%d1:1.3f\n2:%1.4f\n3:%1.4f\n4:%1.4f\n5:%lu\n", ctr_variables);
         break;
     case CSV:
-        Printf("%d,%1.1f,%1.4f,%1.4f,%1.4f,%lu\n", ctr_variables);
+        Printf("%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu\n", ctr_variables);
         break;
     default:
         Printx("unknown print format");
@@ -95,14 +96,18 @@ void CTReport (int type, float shuntMA, float busV, float thermLoad, float therm
     }
 }
 
-void PrintCCInfo (float targetMA, int minutes)
+void PrintCCInfo (float targetMA, int minutes, boolean pulsed)
 {
-    Printf("runParams[%%runNum]:=\"BattID=%s, targetmA=%1.1f, minutes=%d, band=+%d/-%d, Platform=Integrated\";\n", battID, targetMA, minutes, (int)bandPlus, (int)bandMinus);
+    Printf("runParams[%%runNum]:=\"BattID=%s, targetmA=%1.1f, minutes=%d, Pulsed=", battID, targetMA, minutes);
+    if (pulsed == true) Printx("true");
+    else Printx("false");
+    Printx(", Platform=Integrated\";\n");
 }
 
 void PrintCVInfo (float targetV, int minutes)
 {
-    Printf("runParams[%%runNum]:=\"BattID=%s, targetV=%1.1f, minutes=%d, Platform=Integrated\";\n", battID, targetV, minutes);
+    Printf("runParams[%%runNum]:=\"BattID=%s, targetV=%1.2f, minutes=%d, ", battID, targetV, minutes);
+    Printx("Platform=Integrated\";\n");
 }
 
 void NudgeReport (int nudgeCount, int potLevelBN, unsigned long timestamp)

@@ -59,9 +59,8 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
         if (bailRC != 0)
             return bailRC;
 
-       // if ((IsRunning(OneShotTestTimer)) == false) {   // early success for script testing
+       // if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
        //     Printx("{666, \"Early Success - Testing\"},\n");
-       //     PowerOff();
        //     return Success;
        //     }
 
@@ -88,6 +87,91 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
     return MaxTime;
 
 }
+
+exitStatus ConstantCurrentPulsed (float targetMA, unsigned durationM, float maxV)
+{
+    exitStatus bailRC;
+    unsigned long timeStamp;
+    float shuntMA, busV, batteryTemp, ambientTemp;
+    float upperBound, lowerBound, upperTarget, lowerTarget;
+
+    upperBound  = targetMA + bandPlus;
+    lowerBound  = targetMA - bandMinus;
+    upperTarget = targetMA + 0.05;
+    lowerTarget = targetMA - 0.05;
+
+    ActivateDetector();
+    ResyncTimer(ReportTimer);
+    StartTimer(MaxChargeTimer, (durationM * 60.0));
+    StartTimer(OneShotTestTimer, (10 * 60.0));
+
+    while (IsRunning(MaxChargeTimer)) {     // Single-step ramp-up
+        timeStamp = millis();
+        Monitor(&shuntMA, &busV);
+        GetTemperatures(&batteryTemp, &ambientTemp);
+        bailRC = BailOutQ(busV, batteryTemp);
+
+        if (bailRC != 0)
+            return bailRC;
+
+        else if (shuntMA > lowerTarget) {
+            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+            break;
+        }
+        else if (NudgeVoltage(+1) == 0)
+            return BoundsCheck;
+
+        if (HasExpired(ReportTimer))
+            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+
+    }   // Drop thru only if we ramped up to 'lowerTarget', or ran out of time trying
+
+    while (IsRunning(MaxChargeTimer)) {     // Maintain constant current
+        timeStamp = millis();               // record time at which monitor sample taken
+        Monitor(&shuntMA, &busV);
+        GetTemperatures(&batteryTemp, &ambientTemp);
+        bailRC = BailOutQ(busV, batteryTemp);
+
+        if (bailRC != 0)
+            return bailRC;
+
+        //if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
+        //    Printx("{666, \"Early Success - Testing\"},\n");
+        //    return Success;
+        //    }
+
+        if (shuntMA < lowerBound)        // nudge upwards
+            do {
+                if (NudgeVoltage(+1) == 0)
+                    return BoundsCheck;
+                timeStamp = millis();
+                Monitor(&shuntMA, &busV);
+            } while (shuntMA < lowerTarget);
+
+        else if (shuntMA > upperBound)   // nudge downwards
+            do {
+                if (NudgeVoltage(-1) == 0)
+                    return BoundsCheck;
+                timeStamp = millis();
+                Monitor(&shuntMA, &busV);
+            } while (shuntMA > upperTarget);
+
+        if (HasExpired(ReportTimer)) {
+            CTReport(typeCCRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp); // time is 150mS before power=off
+            if (FullyCharged(shuntMA, (batteryTemp - ambientTemp)))
+                return Success;
+            PowerOff();
+            delay(350);
+            timeStamp = millis();
+            Monitor(&shuntMA, &busV);
+            CTReport(typePulseRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp); // time is 150mS before power=on
+            PowerOn();  
+        }
+    }
+    return MaxTime;
+
+}
+
 
 
 //---------------------------------------------------------------------------------------

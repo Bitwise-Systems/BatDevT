@@ -136,10 +136,9 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
 {
     float shuntMA, busV;
     unsigned long start = millis();
-    //unsigned long start = millis();
 
     PowerOff();    // Ensure TLynx power isn't just running down the drain.
-
+ 
    // HeavyOn();
     MediumOn();                  // reduce load to approx that of standalone discharger
     LightOn();
@@ -148,17 +147,12 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
         if (Serial.available() > 0) {
             // HeavyOff();
             MediumOff();
-            DisReport(shuntMA, busV, millis());
-            return ConsoleInterrupt;
-        }
-        if (HasExpired(ReportTimer)) {
             LightOff();
             DisReport(shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
         if (HasExpired(ReportTimer))
             DisReport(shuntMA, busV, millis());
-
         Monitor(&shuntMA, &busV);
     }
     // HeavyOff();
@@ -180,13 +174,8 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
             DisReport(shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
-        if (HasExpired(ReportTimer)) {
-            DisReport(shuntMA, busV, millis());
-            return ConsoleInterrupt;
-        }
         if (HasExpired(ReportTimer))
             DisReport(shuntMA, busV, millis());
-
         Monitor(&shuntMA, &busV);
     }
     
