@@ -55,7 +55,7 @@ char battID[20] = "<undefined>";
 
 char printbuf[95];                 // Print buffer used by Printf
                                    // bumped from 85 to 95 to handle platform info
-boolean scriptrunning = false;     // regulates issuance of '~' to close external records file                                  
+boolean scriptrunning = false;     // regulates issuance of '~' to close external records file
 
 typedef struct DispatchTable {
     const char *command;           // Command name
@@ -64,14 +64,12 @@ typedef struct DispatchTable {
 
 
 const struct DispatchTable commandTable[] = {
-    { "thermo",     ThermLoop       },  // Temporarily provide access to 'ThermMonitor'
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
     { "ccd",        ccdCmd          },  // constantcurrent, dual bands
     { "ccp",        ccpCmd          },  // pulsed version of constantcurrent
     { "cv",         cvCmd           },
     { "d",          DischargeCmd    },
-    { "form",       SetPrintFormat  },
     { "getpga",     GetPgaCmd       },
     { "heat",       ReportHeats     },
     { "help",       PrintHelp       },
@@ -90,6 +88,7 @@ const struct DispatchTable commandTable[] = {
     { "script",     ScriptCmd       },
     { "setpga",     PgaCmd          },
     { "tell",       Report          },
+    { "thermo",     ThermLoop       },  // Access to 'ThermMonitor'
 //  { "trial",      ConstCurrTrial  },
     { "vget",       vGetCmd         },
     { "vset",       VsetCmd         },
@@ -116,9 +115,9 @@ void setup (void)
     InitTimerTask(RefreshTemperatures);
     InitLoads();
     SetPGA(8);
-    FreeRam(NULL);      // keep tabs on amount of free ram
+    FreeRam(NULL);  // Keep tabs on amount of free RAM.
     SetID(NULL);    // Print the default battery ID as a
-                    // reminder to set the actual one.
+                    // ...reminder to set the actual one.
 }
 
 
@@ -138,6 +137,6 @@ void loop (void)
     rc = (*commandTable[i].handler)(t);    // call command handler
     if (rc != 0) {
         ReportExitStatus(rc);
-        Printx(" ~\n");                    // sends stop/close to pc file prog
+        Printx("~\n");                     // Sends stop/close to terminal monitor
     }
 }

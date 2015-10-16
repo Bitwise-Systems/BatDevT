@@ -62,20 +62,22 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
        // if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
        //     Printx("{666, \"Early Success - Testing\"},\n");
        //     return Success;
-       //     }
+       // }
 
         if (shuntMA < lowerBound)        // nudge upwards
             do {
                 if (NudgeVoltage(+1) == 0)
                     return BoundsCheck;
-                Monitor(&shuntMA, NULL);
+                timeStamp = millis();
+                Monitor(&shuntMA, &busV);
             } while (shuntMA < lowerTarget);
 
         else if (shuntMA > upperBound)   // nudge downwards
             do {
                 if (NudgeVoltage(-1) == 0)
                     return BoundsCheck;
-                Monitor(&shuntMA, NULL);
+                timeStamp = millis();
+                Monitor(&shuntMA, &busV);
             } while (shuntMA > upperTarget);
 
         if (HasExpired(ReportTimer)) {
@@ -138,7 +140,7 @@ exitStatus ConstantCurrentPulsed (float targetMA, unsigned durationM, float maxV
         //if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
         //    Printx("{666, \"Early Success - Testing\"},\n");
         //    return Success;
-        //    }
+        //}
 
         if (shuntMA < lowerBound)        // nudge upwards
             do {
@@ -165,7 +167,7 @@ exitStatus ConstantCurrentPulsed (float targetMA, unsigned durationM, float maxV
             timeStamp = millis();
             Monitor(&shuntMA, &busV);
             CTReport(typePulseRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp); // time is 150mS before power=on
-            PowerOn();  
+            PowerOn();
         }
     }
     return MaxTime;
@@ -206,7 +208,7 @@ boolean FullyCharged (float shuntMA, float tempDifferential)
     runLength = (smoothedMA > previousMA) ? runLength + 1 : 0;
     previousMA = smoothedMA;
     if (runLength > 12) {
-        CTReport(2, shuntMA, 0.0, tempDifferential, 0.0, millis());
+        CTReport(typeDetectRecord, shuntMA, 0.0, tempDifferential, 0.0, millis());
         return true;
     }
     return false;

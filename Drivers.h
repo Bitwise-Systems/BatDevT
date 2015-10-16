@@ -43,11 +43,7 @@ typedef struct { float busScale; float busOffset; float shuntScale; float shuntO
 
 #define ShuntResistor_Ohms 0.1    // On-board shunt resistor: 0.1 Ohm, 1%, 2 Watt
 
-
-//    This is not really a driver component; it's used by ConstantCurrent().
-//    Just parking it here temporarily for convenience.
-
-typedef enum {
+typedef enum {                // Function return codes used throughout the application:
     Success = 0,
     ParameterError = 1,
     SystemError,
@@ -65,12 +61,12 @@ typedef enum {
     MaxTime,
     NegMA,
     DiodeTrip,                      // Ideal Diode is not conducting
-    NoBatt, 
+    NoBatt,
     BatRev,                         // Battery Polarity is reversed
-    UnkBatt, 
+    UnkBatt,
     Alky,                           // Alkaline (non-chargeable) primary Battery
     Lithi                           // Lithium primary Battery
 
-} exitStatus;      
+} exitStatus;
 
 #endif _Drivers_h_

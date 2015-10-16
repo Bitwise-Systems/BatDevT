@@ -11,17 +11,9 @@
 //
 //      Reduced FreeRam from two types of ram reports to one
 //      Tracked extra voltage on bus (with no battery) to INA219
+//      "help" command functionality moved to terminal monitor
 //
 //
-
-exitStatus ThermLoop (char **args)    // Temporarily provide access to 'ThermMonitor'
-{
-    int minutes = (*++args == NULL) ? 1 : atoi(*args);
-    (void) ThermMonitor(minutes);
-    Printx("Done\n");
-    return Success;
-}
-
 
 exitStatus BatPresentCmd (char **args)
 {
@@ -36,113 +28,112 @@ exitStatus BatPresentCmd (char **args)
 }
 
 
-exitStatus ccdCmd (char **args)     // calls constant current  arg1 is target MA, arg 2 is minutes
+exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA, arg2 is minutes
 {
-    float shuntMA, busV, voltCeiling;
+    exitStatus exitRC;
     int targetMA, minutes;
     unsigned long startRecordsTime;
-    exitStatus exitRC = Success;
+    float shuntMA, busV, voltCeiling;
 
-    targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);  // max 4A to protect 2W .1ohm shunt resistor
-    minutes =     (*++args == NULL) ? 540         : constrain(atoi(*args), 1, 1440);    //..4A x .4V drop = 1.6W
+    targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);    // max 4A to protect 2W .1ohm shunt resistor
+    minutes =     (*++args == NULL) ? 540        : constrain(atoi(*args), 1, 1440);    // 0.4A x 0.4V drop = 1.6W
     voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
 
     Monitor(NULL, &busV);
-    Printf("just before setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
+    Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<testing initial high voltage>>
     exitRC = BatteryPresentQ(busV);
-    if (exitRC != 0)   return exitRC;
+    if (exitRC != 0)
+        return exitRC;
     SetVoltage(busV + 0.020);      // final val should be slightly under batt voltage  ?remove .01 bump?
     PowerOn();
     delay(10);
-    Monitor(&shuntMA, NULL);
-    Monitor(NULL, &busV);                                     // <<testing initial high voltage>>
+    Monitor(&shuntMA, &busV);                                 // <<testing initial high voltage>>
+    Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<testing initial high voltage>>
 
-    Printf("just after setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
         Printx("No external power, exiting\n");
         return DiodeTrip;
     }
-
-    PrintCCInfo (targetMA, minutes, false);      // false means no pulsing
-
-    startRecordsTime = StartRecords();
+    PrintChargeParams(targetMA, minutes, false);      // False means no pulsing
+    startRecordsTime = StartChargeRecords();
     exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);
-    EndRecords(startRecordsTime, exitRC);
+    EndChargeRecords(startRecordsTime, exitRC);
     PowerOff();
     SetVoltage(SetVLow);
-   // CoolDown(15);
-    if (scriptrunning == false) Printx("~");
+    if (! scriptrunning)
+        Printx("~");
     return exitRC;
+
 }
 
-exitStatus ccpCmd (char **args)     // calls constant current  arg1 is target MA, arg 2 is minutes
-{                                    // calls pulsed version of constantcurrent
-    float shuntMA, busV, voltCeiling;
+
+exitStatus ccpCmd (char **args)      // Calls ConstantCurrentPulsed.  Arg1 is targetMA, arg2 is minutes
+{
+    exitStatus exitRC;
     int targetMA, minutes;
     unsigned long startRecordsTime;
-    exitStatus exitRC = Success;
+    float shuntMA, busV, voltCeiling;
 
     targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);  // max 4A to protect 2W .1ohm shunt resistor
     minutes =     (*++args == NULL) ? 540        : constrain(atoi(*args), 1, 1440);    //..4A x .4V drop = 1.6W
     voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
 
     Monitor(NULL, &busV);
-    Printf("just before setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
+    Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<testing initial high voltage>>
     exitRC = BatteryPresentQ(busV);
-    if (exitRC != 0)   return exitRC;
-    SetVoltage(busV + 0.020);      
+    if (exitRC != 0)
+        return exitRC;
+
+    SetVoltage(busV + 0.020);
     PowerOn();
     delay(10);
-    Monitor(&shuntMA, NULL);
-    Monitor(NULL, &busV);                                     // <<testing initial high voltage>>
+    Monitor(&shuntMA, &busV);                                 // <<testing initial high voltage>>
+    Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<testing initial high voltage>>
 
-    Printf("just after setvoltage volts: %1.3f\n", busV);     // <<testing initial high voltage>>
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
         Printx("No external power, exiting\n");
         return DiodeTrip;
     }
-
-    PrintCCInfo (targetMA, minutes, true);                     // true means pulsing
-
-    startRecordsTime = StartRecords();
+    PrintChargeParams(targetMA, minutes, true);               // True means pulsing
+    startRecordsTime = StartChargeRecords();
     exitRC = ConstantCurrentPulsed(targetMA, minutes, voltCeiling);
-    EndRecords(startRecordsTime, exitRC);
+    EndChargeRecords(startRecordsTime, exitRC);
     PowerOff();
     SetVoltage(SetVLow);
-   // CoolDown(15);
-    if (scriptrunning == false) Printx("~");
+    if (! scriptrunning)
+        Printx("~");
     return exitRC;
+
 }
 
-exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Volts, arg 2 is minutes
-{                                  // ..on arg3 constantvoltage bails at or below this value
-    float shuntMA, busV, targetV, mAmpFloor;
+
+exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volts,
+{                                  // ...arg2 is minutes, arg3: bail at or below this value
     int minutes;
-    unsigned long startRecordsTime;
     exitStatus rc;
+    unsigned long startRecordsTime;
+    float shuntMA, busV, targetV, mAmpFloor;
 
     targetV =   (*++args == NULL) ? SetVLow   : constrain(atof(*args), SetVLow, SetVHigh);
     minutes =   (*++args == NULL) ? 10        : constrain(atoi(*args), 1, 1440);
     mAmpFloor = (*++args == NULL) ? 5.0       : constrain(atof(*args), 1, 4000);  // max safes shunt resistor
 
     Monitor(&shuntMA, &busV);
-    if (busV < 0.1) {                                   // don't power up
-        Printx("Don't see a battery, exiting\n");
-        return MinV;                 // change this, cmd handler doesn't do exitStatus
+    if (busV < 0.1) {
+        Printx("Don't see a battery; exiting\n");
+        return MinV;
     }
     if  (shuntMA < -80.0)  {
-        Printx("No external power, exiting");
+        Printx("No external power; exiting");
         return NegMA;
     }
 
-    PrintCVInfo (targetV, minutes);
-
-    SetVoltage(SetVLow);      // start at lowest, let constant voltage ramp it up
+    PrintChargeParams(targetV, minutes, false);
+    SetVoltage(SetVLow);        // Let ConstantVoltage ramp it up
     PowerOn();
-    startRecordsTime = StartRecords();
-
+    startRecordsTime = StartChargeRecords();
     do {
         rc = ConstantVoltage(targetV, minutes, mAmpFloor);
         if (rc != 0)
@@ -152,29 +143,33 @@ exitStatus cvCmd (char **args)     // calls constant voltage  arg1 is target Vol
         targetV += 0.1;
     } while (targetV < 1.5);
 
-    EndRecords(startRecordsTime, rc);
+    EndChargeRecords(startRecordsTime, rc);
     PowerOff();
     SetVoltage(SetVLow);
-    Printf("~\n");
+    Printx("~\n");
     return Success;
+
 }
 
 
 exitStatus DischargeCmd (char **args)
 {
+    exitStatus rc;
     float thresh1, thresh2;
     unsigned int reboundSecs;
-    exitStatus rc;
 
     thresh1 =     (*++args == NULL) ? 0.8 : constrain(atof(*args), 0.5, 1.4);
     thresh2 =     (*++args == NULL) ? 1.0 : constrain(atof(*args), 0.5, 1.4);
     reboundSecs = (*++args == NULL) ? 480 : constrain(atoi(*args), 1, 6000);
-    PrintDischargeStart();
+
+    PrintDischargeParams();
     rc = Discharge(thresh1, thresh2, reboundSecs);
-    Printx("{666}};\n");                 // close off report lists for m'matica
-    Printx("(* Discharge_Done *)\n\n");
-    if (scriptrunning == false)  Printx("~");
+    EndDischargeRecords();
+
+    if (! scriptrunning)
+        Printx("~");
     return rc;
+
 }
 
 
@@ -307,18 +302,19 @@ exitStatus PgaCmd (char **args)
 
 exitStatus PrintHelp (char **args)
 {
-    char c;
-    int i;
-    for (i = 0; (c = EEPROM.read(i)) != '\0'; i++)
-        Serial.write(c);
+    (void) args;
+
+    Printx("Help unavailable\n");
     return Success;
+
 }
 
 
 exitStatus PwrGoodCmd (char **args)
 {
     (void) args;
-    Printf("PGood is %s\n", PowerGoodQ() == 1 ? "okay" : "not okay");
+
+    Printf("PGood is %s\n", (PowerGoodQ() == 1) ? "okay" : "not okay");
     return Success;
 }
 
@@ -350,8 +346,9 @@ exitStatus Report (char **args)
 
     Monitor(&shuntMA, &busV);
     GetTemperatures(&thermLoad, &thermAmbient);
-    CTReport(shuntMA, busV, thermLoad, thermAmbient, millis(), 0);
+    CTReport(-1, shuntMA, busV, thermLoad, thermAmbient, millis());
     return Success;
+
 }
 
 
@@ -360,15 +357,16 @@ exitStatus ReportHeats (char **args)
     float thermLoad, thermAmbient;
 
     GetTemperatures(&thermLoad, &thermAmbient);
-    Printf("Load Temp: %1.2f   Ambient Temp: %1.2f\n", thermLoad, thermAmbient);
+    Printf("Battery temp: %1.2f   Ambient temp: %1.2f\n", thermLoad, thermAmbient);
     return Success;
+
 }
 
 
 exitStatus ScriptCmd (char **args)
 {
-    exitStatus rc;
     char c;
+    exitStatus rc;
     static char *chargeCmd[] = {"ccd","400","540","1.7", NULL};   // mA, minutes, upper volt limit
                                                                   // std, 400-540-1.68
     static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
@@ -376,11 +374,11 @@ exitStatus ScriptCmd (char **args)
                                                                   // std, 0.8-1.0-480
     //static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};   //TESTING
     //static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};  //TESTING
-    
+
     while (Serial.available() > 0) {
         c = Serial.read();
         Serial.println(c);
-    }    
+    }
 
     scriptrunning = true;
 
@@ -408,22 +406,15 @@ exitStatus ScriptCmd (char **args)
         Printx("Premature exit from constant charge\n");
         return rc;
     }
-        rc = DischargeCmd(dischCmd);
+    rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
         Printx("Premature exit from discharge\n");
         return rc;
     }
-   // rc = PulseChargeCmd(chargeCmd);
-   // if (rc != Success) {
-     //  scriptrunning = false;
-   //     Printx("Premature exit from pulsed charge\n");
-   //     return rc;
-   // }
     scriptrunning = false;
     Printx("~");
     return Success;
-
 }
 
 exitStatus SetID (char **args)
@@ -436,16 +427,14 @@ exitStatus SetID (char **args)
 
 }
 
-// function SetPrintFormat is under 'Print' tab
 
-/*
-int SetRunNum (char **args)
+exitStatus ThermLoop (char **args)    // Provide access to 'ThermMonitor'
 {
-    runNum = (*++args == NULL) ? runNum : atoi(*args);
-    Printf("runNum: %d\n", runNum);
-    return 0;
+    int minutes = (*++args == NULL) ? 1 : atoi(*args);
+    (void) ThermMonitor(minutes);
+    Printx("Done\n");
+    return Success;
 }
-*/
 
 
 exitStatus unknownCommand (char **args)
