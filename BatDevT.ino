@@ -64,6 +64,7 @@ typedef struct DispatchTable {
 
 
 const struct DispatchTable commandTable[] = {
+    { "t",          Test            },  // <<< MSR: Temporary test function >>>
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
     { "ccd",        ccdCmd          },  // constantcurrent, dual bands
@@ -101,20 +102,20 @@ void setup (void)
     Serial.begin(38400);
     delay(600);
 
-    InitTLynx();
-    if (Init219() == false) {
-        Printx("INA219 breakout board not found!");
-        while (1)
-            ;
-    }
-    if (InitThermo() != 0) {
-        Printx("Thermometers not found!");
-        while (1)
-            ;
-    }
-    InitTimerTask(RefreshTemperatures);
-    InitLoads();
-    SetPGA(8);
+//     InitTLynx();
+//     if (Init219() == false) {
+//         Printx("INA219 breakout board not found!");
+//         while (1)
+//             ;
+//     }
+//     if (InitThermo() != 0) {
+//         Printx("Thermometers not found!");
+//         while (1)
+//             ;
+//     }
+//     InitTimerTask(RefreshTemperatures);
+//     InitLoads();
+//     SetPGA(8);
     FreeRam(NULL);  // Keep tabs on amount of free RAM.
     SetID(NULL);    // Print the default battery ID as a
                     // ...reminder to set the actual one.

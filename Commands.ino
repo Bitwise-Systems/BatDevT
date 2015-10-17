@@ -466,3 +466,12 @@ exitStatus VsetCmd (char **args)
     return Success;
 
 }
+
+
+exitStatus Test (char **args)    // <<< MSR: Temporary test function >>>
+{
+    int rc = (*++args == NULL) ? 0 : atoi(*args);
+    ReportExitStatus((exitStatus) rc);
+    return Success;
+
+}

@@ -19,23 +19,21 @@ void PrintChargeParams (float target, int minutes, boolean pulsed)
 
 unsigned long StartChargeRecords (void)
 {
-    Printx("AddData[%%runNum->{");
+    Printx("AddData[%runNum->{");
     return millis();
 }
 
 
 void EndChargeRecords (unsigned long startingTime, exitStatus rc)
 {
-    int minutes, seconds;
-    unsigned long elapsed = (millis() - startingTime);
+    ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
 
-    minutes = elapsed / (60 * 1000UL);
-    seconds = (elapsed % (60 * 1000UL))/1000;
+    Printf("{%d, \"%lu mins %lu secs elapsed\", \"Pot: %d\", ",
+            typeEndRecord, qr.quot, qr.rem, GetPotLevel());
 
-    Printf("{%d, \"%d mins %d secs elapsed\", \"Pot: %d\", ",
-            typeEndRecord, minutes, seconds, GetPotLevel());
     ReportExitStatus(rc);
     Printx("}}];\n");
+
 }
 
 
@@ -46,7 +44,7 @@ void PrintDischargeParams (void)
     Monitor(NULL, &busV);
     Printf("AddParm[%%runNum->\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\"];\n",
             battID, busV);
-    Printx("AddData[%%runNum->{");
+    Printx("AddData[%runNum->{");
 
 }
 
@@ -85,7 +83,7 @@ void PrintEEPROMstring (int n)    // Print nth string from EEPROM (zero-based)
 
     while (n-- > 0)
         while (i < 1023 && EEPROM.read(i++) != '\0')    // ATmega328P capacity = 1024 bytes
-            ;
+            continue;
     while ((c = EEPROM.read(i++)) != '\0')
         Serial.write(c);
 
