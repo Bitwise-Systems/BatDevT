@@ -138,7 +138,7 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
     unsigned long start = millis();
 
     PowerOff();    // Ensure TLynx power isn't just running down the drain.
- 
+
    // HeavyOn();
     MediumOn();                  // reduce load to approx that of standalone discharger
     LightOn();
@@ -178,7 +178,7 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
             DisReport(shuntMA, busV, millis());
         Monitor(&shuntMA, &busV);
     }
-    
+
     LightOff();
         StartTimer(ReboundTimer, reboundTime);   // mmm, no console escape during rebound...
         while (IsRunning(ReboundTimer)) {        // add'l rebound for following scripted cmds
@@ -189,8 +189,6 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
     }
 
     DisReport(shuntMA, busV, millis());
-    Printx("Discharge Done\n");
-
     return Success;
 }
 

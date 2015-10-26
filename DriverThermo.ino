@@ -84,11 +84,11 @@ void PrintThermoAddress (DeviceAddress addr)
 
 int GetThermoIdent (char **args)
 {
-    Printx("Thermometer 0: ");
+    Printf("Thermometer 0: ");
     PrintThermoAddress(thermoAddr0);
-    Printx("  Thermometer 1: ");
+    Printf("  Thermometer 1: ");
     PrintThermoAddress(thermoAddr1);
-    Printx("\n");
+    Printf("\n");
     return 0;
 
 }

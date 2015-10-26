@@ -23,8 +23,9 @@ exitStatus BatPresentCmd (char **args)
     Monitor(NULL, &busV);
     rc = BatteryPresentQ(busV);
     ReportExitStatus(rc);
-    Printx("\n");
+    Printf("\n");
     return Success;
+
 }
 
 
@@ -52,7 +53,7 @@ exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA,
 
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
-        Printx("No external power, exiting\n");
+        Printf("No external power, exiting\n");
         return DiodeTrip;
     }
     PrintChargeParams(targetMA, minutes, false);      // False means no pulsing
@@ -62,7 +63,7 @@ exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA,
     PowerOff();
     SetVoltage(SetVLow);
     if (! scriptrunning)
-        Printx("~");
+        Printf("~");
     return exitRC;
 
 }
@@ -93,7 +94,7 @@ exitStatus ccpCmd (char **args)      // Calls ConstantCurrentPulsed.  Arg1 is ta
 
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
-        Printx("No external power, exiting\n");
+        Printf("No external power, exiting\n");
         return DiodeTrip;
     }
     PrintChargeParams(targetMA, minutes, true);               // True means pulsing
@@ -103,7 +104,7 @@ exitStatus ccpCmd (char **args)      // Calls ConstantCurrentPulsed.  Arg1 is ta
     PowerOff();
     SetVoltage(SetVLow);
     if (! scriptrunning)
-        Printx("~");
+        Printf("~");
     return exitRC;
 
 }
@@ -122,11 +123,11 @@ exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volt
 
     Monitor(&shuntMA, &busV);
     if (busV < 0.1) {
-        Printx("Don't see a battery; exiting\n");
+        Printf("Don't see a battery; exiting\n");
         return MinV;
     }
     if  (shuntMA < -80.0)  {
-        Printx("No external power; exiting");
+        Printf("No external power; exiting");
         return NegMA;
     }
 
@@ -146,7 +147,7 @@ exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volt
     EndChargeRecords(startRecordsTime, rc);
     PowerOff();
     SetVoltage(SetVLow);
-    Printx("~\n");
+    Printf("~\n");
     return Success;
 
 }
@@ -167,7 +168,7 @@ exitStatus DischargeCmd (char **args)
     EndDischargeRecords();
 
     if (! scriptrunning)
-        Printx("~");
+        Printf("~");
     return rc;
 
 }
@@ -191,7 +192,7 @@ exitStatus FreeRam (char **args)
 exitStatus GetPgaCmd (char **args)
 {
     (void) args;
-    Printf("PGA presently set to %d\n", GetPGA());
+    Printf("PGA divisor: %d\n", GetPGA());
     return Success;
 }
 
@@ -201,7 +202,7 @@ exitStatus iGetCmd (char **args)
     float shuntMA;
 
     Monitor(&shuntMA, NULL);
-    Printf("Bus current: %1.1fmA\n", shuntMA);
+    Printf("Shunt current: %1.1fmA\n", shuntMA);
     return Success;
 }
 
@@ -212,28 +213,28 @@ exitStatus LoffCmd(char **args)
         switch (**args) {
           case 'h':
             HeavyOff();
-            Printx("hi ");
+            Printf("hi ");
             break;
           case 'm':
             MediumOff();
-            Printx("med ");
+            Printf("med ");
             break;
           case 'l':
             LightOff();
-            Printx("low ");
+            Printf("low ");
             break;
           case 'b':
             UnLoadBus();
-            Printx("bus");
+            Printf("bus");
             break;
           default:
-            Printx("!arg No ");
+            Printf("!arg No ");
             break;
         }
-        Printx("load off\n");
+        Printf("load off\n");
     }
     else
-        Printx("no arg, no action\n");
+        Printf("no arg, no action\n");
     return Success;
 }
 
@@ -244,28 +245,28 @@ exitStatus LonCmd(char **args)
         switch (**++args) {
           case 'h':
             HeavyOn();
-            Printx("hi ");
+            Printf("hi ");
             break;
           case 'm':
             MediumOn();
-            Printx("med ");
+            Printf("med ");
             break;
           case 'l':
             LightOn();
-            Printx("low ");
+            Printf("low ");
             break;
           case 'b':
             LoadBus();
-            Printx("bus");
+            Printf("bus");
             break;
           default:
-            Printx("!arg No ");
+            Printf("!arg No ");
             break;
         }
-        Printx("load on\n");
+        Printf("load on\n");
     }
     else
-        Printx("no arg, no action\n");
+        Printf("no arg, no action\n");
     return Success;
 }
 
@@ -291,7 +292,7 @@ exitStatus PgaCmd (char **args)
             SetPGA(divisor);
             break;
           default:
-            Printx("Invalid divisor.  Need 1, 2, 4, or 8.");
+            Printf("Invalid divisor.  Need 1, 2, 4, or 8.");
             break;
         }
     }
@@ -304,7 +305,7 @@ exitStatus PrintHelp (char **args)
 {
     (void) args;
 
-    Printx("Help unavailable\n");
+    Printf("Help unavailable\n");
     return Success;
 
 }
@@ -324,7 +325,7 @@ exitStatus PwrOnCmd (char **args)
     (void) args;
 
     PowerOn();
-    Printx("Power ON\n");
+    Printf("Power ON\n");
     return Success;
 }
 
@@ -334,7 +335,7 @@ exitStatus PwrOffCmd (char **args)
     (void) args;
 
     PowerOff();
-    Printx("Power OFF\n");
+    Printf("Power OFF\n");
     return Success;
 }
 
@@ -372,50 +373,48 @@ exitStatus ScriptCmd (char **args)
     static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
                                                                   //..lower limit, rebound seconds
                                                                   // std, 0.8-1.0-480
-    //static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};   //TESTING
-    //static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};  //TESTING
 
-    while (Serial.available() > 0) {
-        c = Serial.read();
-        Serial.println(c);
-    }
+//  static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};    // TESTING
+//  static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};   // TESTING
 
     scriptrunning = true;
 
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from discharge\n");         // '~' included in non-zero rc handler
+        Printf("Premature exit from discharge\n");         // '~' included in non-zero rc handler
         return rc;
     }
     rc = ccdCmd(chargeCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from constant charge\n");
+        Printf("Premature exit from constant charge\n");
         return rc;
     }
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from discharge\n");
+        Printf("Premature exit from discharge\n");
         return rc;
     }
     rc = ccpCmd(chargeCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from constant charge\n");
+        Printf("Premature exit from constant charge\n");
         return rc;
     }
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
-        Printx("Premature exit from discharge\n");
+        Printf("Premature exit from discharge\n");
         return rc;
     }
     scriptrunning = false;
-    Printx("~");
+    Printf("~");
     return Success;
+
 }
+
 
 exitStatus SetID (char **args)
 {
@@ -432,7 +431,7 @@ exitStatus ThermLoop (char **args)    // Provide access to 'ThermMonitor'
 {
     int minutes = (*++args == NULL) ? 1 : atoi(*args);
     (void) ThermMonitor(minutes);
-    Printx("Done\n");
+    Printf("Done\n");
     return Success;
 }
 
@@ -441,7 +440,7 @@ exitStatus unknownCommand (char **args)
 {
     (void) args;
 
-    Printx("Don't know that command\n");
+    Printf("Don't know that command\n");
     return ParameterError;
 
 }
@@ -462,7 +461,7 @@ exitStatus VsetCmd (char **args)
     float voltsetting;
 
     voltsetting = SetVoltage((*++args == NULL) ? SetVLow : atof(*args));
-    Printf("setting prelim voltage to %1.3f\n", voltsetting);
+    Printf("Setting voltage to %1.3f\n", voltsetting);
     return Success;
 
 }

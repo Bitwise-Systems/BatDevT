@@ -19,7 +19,7 @@ void PrintChargeParams (float target, int minutes, boolean pulsed)
 
 unsigned long StartChargeRecords (void)
 {
-    Printx("AddData[%runNum->{");
+    Printf("AddData[%%runNum->{");
     return millis();
 }
 
@@ -32,7 +32,7 @@ void EndChargeRecords (unsigned long startingTime, exitStatus rc)
             typeEndRecord, qr.quot, qr.rem, GetPotLevel());
 
     ReportExitStatus(rc);
-    Printx("}}];\n");
+    Printf("}}];\n");
 
 }
 
@@ -44,7 +44,7 @@ void PrintDischargeParams (void)
     Monitor(NULL, &busV);
     Printf("AddParm[%%runNum->\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\"];\n",
             battID, busV);
-    Printx("AddData[%runNum->{");
+    Printf("AddData[%%runNum->{");
 
 }
 
@@ -69,9 +69,9 @@ void DisReport (float shuntMA, float busV, unsigned long millisecs)
 
 void ReportExitStatus (exitStatus rc)
 {
-    Printx("\"");
+    Printf("\"");
     PrintEEPROMstring(rc);
-    Printx("\"");
+    Printf("\"");
 
 }
 

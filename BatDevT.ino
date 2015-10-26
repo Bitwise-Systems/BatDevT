@@ -29,33 +29,28 @@
 #define maxBatTemp    44.9         // Max allowed battery temperature
 #define maxBatVolt    1.75         // Max allowed battery voltage
 
-#define reportInterval 5000L       // In milliseconds
-
-
-#define typeCCRecord        0      // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
-#define typeCVRecord        1      // Use CTRecord format
-#define typeDetectRecord    2      // Dip Detected; CTRecord format
-#define typeThermRecord     3      // Use CTRecord format
-#define typeRampUpRecord    4      // Used in ConstantCurrent during ramp-up phase
-#define typePulseRecord     5      // Taken during 'off' pulse while charging    CTRecord format
-#define typeDischargeRecord 9      // Use CTRecord format, not written yet
+#define typeCCRecord         0     // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
+#define typeCVRecord         1     // Use CTRecord format
+#define typeDetectRecord     2     // Dip Detected; CTRecord format
+#define typeThermRecord      3     // Use CTRecord format
+#define typeRampUpRecord     4     // Used in ConstantCurrent during ramp-up phase
+#define typePulseRecord      5     // Taken during 'off' pulse while charging    CTRecord format
+#define typeDischargeRecord  9     // Use CTRecord format, not written yet
 #define typeEndRecord       10     // Elapsed time, exitStatus
 #define typeProvEndRecord   11     // not written yet, use EndRecord format
 #define typeJugsRecord      12     // not written yet
 #define typeNudgeRecord     13     // nudgeCount, potLevel, millis
 #define IResRec             14     // Internal Resistance record, ohms
 
-#define bandPlus  7.0              // Upper band width for constantcurrent
-#define bandMinus 3.0              // Lower band width for constantcurrent
+#define bandPlus  7.0              // ConstantCurrent upper band width
+#define bandMinus 3.0              // ConstantCurrent lower band width
 
 
 //-------------globals-------------
 
 char battID[20] = "<undefined>";
 
-char printbuf[95];                 // Print buffer used by Printf
-                                   // bumped from 85 to 95 to handle platform info
-boolean scriptrunning = false;     // regulates issuance of '~' to close external records file
+boolean scriptrunning = false;            // Regulates issuance of '~' to close external records file
 
 typedef struct DispatchTable {
     const char *command;                  // Command name
@@ -103,12 +98,12 @@ void setup (void)
 
     InitTLynx();
     if (Init219() == false) {
-        Printx("INA219 breakout board not found!");
+        Printf("INA219 breakout board not found!");
         while (1)
             ;
     }
     if (InitThermo() != 0) {
-        Printx("Thermometers not found!");
+        Printf("Thermometers not found!");
         while (1)
             ;
     }
@@ -129,7 +124,7 @@ void loop (void)
     char **t;
 
     t = util.GetCommand();
-    if (*t == NULL)         // completely blank lines are okay
+    if (*t == NULL)
         return;
     for (i = 0; commandTable[i].command != NULL; i++)
         if (strcmp(commandTable[i].command, *t) == 0)
@@ -138,6 +133,6 @@ void loop (void)
     rc = (*commandTable[i].handler)(t);    // call command handler
     if (rc != 0) {
         ReportExitStatus(rc);
-        Printx("~\n");                     // Sends stop/close to terminal monitor
+        Printf("~\n");
     }
 }

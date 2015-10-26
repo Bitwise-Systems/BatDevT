@@ -60,7 +60,7 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
             return bailRC;
 
        // if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
-       //     Printx("{666, \"Early Success - Testing\"},\n");
+       //     Printf("{666, \"Early Success - Testing\"},\n");
        //     return Success;
        // }
 
@@ -138,7 +138,7 @@ exitStatus ConstantCurrentPulsed (float targetMA, unsigned durationM, float maxV
             return bailRC;
 
         //if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
-        //    Printx("{666, \"Early Success - Testing\"},\n");
+        //    Printf("{666, \"Early Success - Testing\"},\n");
         //    return Success;
         //}
 
