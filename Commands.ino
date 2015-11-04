@@ -37,7 +37,7 @@ exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA,
     float shuntMA, busV, voltCeiling;
 
     targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);    // max 4A to protect 2W .1ohm shunt resistor
-    minutes =     (*++args == NULL) ? 540        : constrain(atoi(*args), 1, 1440);    // 0.4A x 0.4V drop = 1.6W
+    minutes =     (*++args == NULL) ? 358        : constrain(atoi(*args), 1, 1440);    // 0.4A x 0.4V drop = 1.6W
     voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
 
     Monitor(NULL, &busV);
@@ -67,48 +67,6 @@ exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA,
     return exitRC;
 
 }
-
-
-exitStatus ccpCmd (char **args)      // Calls ConstantCurrentPulsed.  Arg1 is targetMA, arg2 is minutes
-{
-    exitStatus exitRC;
-    int targetMA, minutes;
-    unsigned long startRecordsTime;
-    float shuntMA, busV, voltCeiling;
-
-    targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);  // max 4A to protect 2W .1ohm shunt resistor
-    minutes =     (*++args == NULL) ? 540        : constrain(atoi(*args), 1, 1440);    //..4A x .4V drop = 1.6W
-    voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
-
-    Monitor(NULL, &busV);
-    Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<testing initial high voltage>>
-    exitRC = BatteryPresentQ(busV);
-    if (exitRC != 0)
-        return exitRC;
-
-    SetVoltage(busV + 0.020);
-    PowerOn();
-    delay(10);
-    Monitor(&shuntMA, &busV);                                 // <<testing initial high voltage>>
-    Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<testing initial high voltage>>
-
-    if (StatusQ() == 1)  {       // if so, could be lack of external power
-        PowerOff();
-        Printf("No external power, exiting\n");
-        return DiodeTrip;
-    }
-    PrintChargeParams(targetMA, minutes, true);               // True means pulsing
-    startRecordsTime = StartChargeRecords();
-    exitRC = ConstantCurrentPulsed(targetMA, minutes, voltCeiling);
-    EndChargeRecords(startRecordsTime, exitRC);
-    PowerOff();
-    SetVoltage(SetVLow);
-    if (! scriptrunning)
-        Printf("~");
-    return exitRC;
-
-}
-
 
 exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volts,
 {                                  // ...arg2 is minutes, arg3: bail at or below this value
@@ -368,12 +326,14 @@ exitStatus ScriptCmd (char **args)
 {
     char c;
     exitStatus rc;
-    static char *chargeCmd[] = {"ccd","400","540","1.7", NULL};   // mA, minutes, upper volt limit
+    static char *chargeCmd[] = {"ccd","400","358","1.7", NULL};   // mA, minutes, upper volt limit
                                                                   // std, 400-540-1.68
     static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
                                                                   //..lower limit, rebound seconds
                                                                   // std, 0.8-1.0-480
-
+//    static char *pulseCmd[] = {"ccp", "400", "393", "1.7", NULL};
+    
+                                                                  // 600, 246; 600, 265
 //  static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};    // TESTING
 //  static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};   // TESTING
 
@@ -397,7 +357,7 @@ exitStatus ScriptCmd (char **args)
         Printf("Premature exit from discharge\n");
         return rc;
     }
-    rc = ccpCmd(chargeCmd);
+    rc = ccdCmd(chargeCmd);
     if (rc != Success) {
         scriptrunning = false;
         Printf("Premature exit from constant charge\n");

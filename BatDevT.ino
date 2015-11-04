@@ -26,8 +26,8 @@
 
 #define vThresh       1.52         // Sets min voltage to start dip detection
 #define mAmpCeiling   4000         // Max allowable thru INA219 shunt resistor
-#define maxBatTemp    44.9         // Max allowed battery temperature
-#define maxBatVolt    1.75         // Max allowed battery voltage
+#define maxBatTemp    40.9         // Max allowed battery temperature
+#define maxBatVolt    1.70         // Max allowed battery voltage
 
 #define typeCCRecord         0     // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
 #define typeCVRecord         1     // Use CTRecord format
@@ -62,7 +62,6 @@ const struct DispatchTable commandTable[] = {
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
     { "ccd",        ccdCmd          },  // constantcurrent, dual bands
-    { "ccp",        ccpCmd          },  // pulsed version of constantcurrent
     { "cv",         cvCmd           },
     { "d",          DischargeCmd    },
     { "getpga",     GetPgaCmd       },
