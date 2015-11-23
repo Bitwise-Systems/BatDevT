@@ -30,8 +30,8 @@
 
 //    Supply voltage limits:
 
-#define SetVLow  0.93436      // Lowest permissible output voltage  03/28/15
-#define SetVHigh 1.85614      // Highest permissible output voltage
+#define SetVLow  0.94798      // Lowest permissible output voltage  11-22-15
+#define SetVHigh 1.85287      // Highest permissible output voltage
 
 
 //    Scaling coefficients for converting raw ADC readings to bus voltage and current:

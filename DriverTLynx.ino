@@ -78,9 +78,18 @@ float SetVoltage (float setV)
 }
 
 
-static int MapVoltageToLevel (float v)    // Mapping expression derived in 'Calibrate5483.nb'
-{
-    return (int) (144782.58398414083 - 255329.6260662532 * (v - sqrt(0.32749571094960045 + (-1.1372942571138163 + v) * v)));    // 03-28-15
+static int MapVoltageToLevel (float v)
+{                                           // Use '219 chip address as a "system ID"
+    int sysID = Get219Address();            // ...to determine proper mapping function.
+
+    if (sysID == 0x44)          // Hutch
+        return (int) (144782.58398414083 - 255329.6260662532 * (v - sqrt(0.32749571094960045 + (-1.1372942571138163 + v) * v)));    // 03-28-15
+
+    else if (sysID == 0x41)     // Mike
+        return (int) (247730.23973477256 - 440578.9548398173 * (v - sqrt(0.319841240475064 + (-1.1265521875173699 + v) * v)));      // 11-22-15
+
+    else                        // Unknown
+        return 1023;
 
 }
 

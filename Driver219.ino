@@ -1,10 +1,9 @@
 //---------------------------------------------------------------------------------------------------
-//    Driver219.ino -- Low-level driver for the INA219 current monitor chip (Adafruit 904 breakout)
+//    Driver219.ino -- Low-level driver for the INA219 current monitor chip
 //
 //    Version 1:  First '219-only version. Equivalent to 'Drivers.ino' version 7
 //    Version 2:  Add the capability to put the '219 into power-down mode
 //
-//    <<< Inconsequential change to test GitHub pull request...
 //
 //---------------------------------------------------------------------------------------------------
 
@@ -226,25 +225,25 @@ coList FetchConstants (byte chipAddress, byte pgaDivisor)
     coList k;
 
     switch (chipAddress) {
-      case 0x41:                            // Disassembled board
-        k.busScale = 0.000484664;
-        k.busOffset = 0.025209850;
+      case 0x41:                             // Mike's OSH Park PCB:
+        k.busScale = 0.0005002685684646561;
+        k.busOffset = 0.02374716782394622;        // 'Calib219V.nb', 11/21/15
         switch (pgaDivisor) {
           case 1:
-            k.shuntScale = 0.09862229;
-            k.shuntOffset = 0.81295965;
+            k.shuntScale = 0.09581313567602281;    // 'Calib219I.nb', 11/21/15
+            k.shuntOffset = 0.05481343136293849;
             break;
           case 2:
-            k.shuntScale = 0.09878921;
-            k.shuntOffset = 0.67339933;
+            k.shuntScale = 0.0957912383713292;
+            k.shuntOffset = 0.12102293360328849;
             break;
           case 4:
-            k.shuntScale = 0.09877012;
-            k.shuntOffset = 0.46516742;
+            k.shuntScale = 0.09574631628482281;
+            k.shuntOffset = 0.15934066397565305;
             break;
           case 8:
-            k.shuntScale = 0.09846957;
-            k.shuntOffset = 0.90033139;
+            k.shuntScale = 0.09567442458722034;
+            k.shuntOffset = 0.43657551106382464;
             break;
           default:
             k.shuntScale = 0.0;
@@ -253,9 +252,9 @@ coList FetchConstants (byte chipAddress, byte pgaDivisor)
         }
         break;
 
-      case 0x44:                            // Hutch's version 4 dev board:
-        k.busScale = 0.000499663546363088;    // 'Calib219V.nb', 03/22/15
-        k.busOffset = 0.023826837671084893;
+      case 0x44:                            // Hutch's version 4 stripboard:
+        k.busScale = 0.000499663546363088;
+        k.busOffset = 0.023826837671084893;       // 'Calib219V.nb', 03/22/15
         switch (pgaDivisor) {
           case 1:
             k.shuntScale = 0.0996220581947172;    // 'Calib219I8.nb', 03/24/15

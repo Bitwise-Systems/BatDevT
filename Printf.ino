@@ -15,6 +15,8 @@
 //          4) Unsigned longs are treated just like longs. Again, this is in the interest
 //             of brevity. Beware of N > 2 billion.
 //
+//      Version 2.1: Support for '%x'. Shoulda just done it from the outset.
+//
 //
 
 #include <stdarg.h>
@@ -62,6 +64,10 @@ void _Printf (char *format, ...)
             format += 3;
             fval = va_arg(argp, double);
             Serial.print(fval, precision);
+            break;
+        case 'x':
+            uval = va_arg(argp, unsigned);
+            Serial.print(uval, HEX);
             break;
         default:
             Serial.write(c);

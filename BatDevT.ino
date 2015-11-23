@@ -59,6 +59,7 @@ typedef struct DispatchTable {
 
 
 const struct DispatchTable commandTable[] = {
+    { "t",          TestFunc        },
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
     { "ccd",        ccdCmd          },  // constantcurrent, dual bands

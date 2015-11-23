@@ -36,8 +36,6 @@ struct FreeRunningStruct {
 
 typedef enum {
     ReportTimer,        // 5-second report timer
-    PulseTimer,         // 1-second charging pulse timer
-    IRTimer,            // 12-second 'low' period for internal resistance
 
     NumFreeRunning
 } FreeRunningTimerID;

@@ -4,6 +4,31 @@
 //                    drivers.
 //=======================================================================================
 
+exitStatus TestFunc (char **args)
+{
+    float chargingR;
+    float onV, onI, offV, offI;
+
+    Monitor(&onI, &onV);
+    PowerOff();
+    delay(250);
+    Monitor(&offI, &offV);
+    chargingR = derivative(onV, offV, onI, offI);
+    PowerOn();
+    Printf("%1.4f\n", chargingR);
+
+    return Success;
+
+}
+
+
+float derivative (float y1, float y0, float x1, float x0) __attribute__ ((noinline));
+float derivative (float y1, float y0, float x1, float x0)
+{
+    return (y1 - y0) / (x1 - x0);
+
+}
+
 
 exitStatus BailOutQ (float busV, float battemp)
 {
