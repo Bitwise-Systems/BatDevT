@@ -43,29 +43,28 @@ typedef struct { float busScale; float busOffset; float shuntScale; float shuntO
 
 #define ShuntResistor_Ohms 0.1    // On-board shunt resistor: 0.1 Ohm, 1%, 2 Watt
 
-typedef enum {                // Function return codes used throughout the application:
+typedef enum {          // Function return codes used throughout the application:
     Success = 0,
-    ParameterError = 1,
-    SystemError,
+    ParameterError,
     ConsoleInterrupt,
-    BoundsCheck,
+    UpperBound,
+    LowerBound,
     PBad,
-    MinV,
-    MaxV,
-    TripV,
-    DeltaV,
+    PanicVoltage,
+    MaxChargeVoltage,
     MaxAmp,
     MinAmp,
-    MaxTemp,
-    DeltaTemp,
+    PanicTemp,
+    ChargeTempThreshold,
+    ChargeTempRate,
     MaxTime,
-    NegMA,
-    DiodeTrip,                      // Ideal Diode is not conducting
-    NoBatt,
-    BatRev,                         // Battery Polarity is reversed
-    UnkBatt,
-    Alky,                           // Alkaline (non-chargeable) primary Battery
-    Lithi                           // Lithium primary Battery
+    IdealDiodeStatus,
+    DipDetected,
+    NoBattery,
+    ReversedBattery,
+    UnknownBattery,
+    Alkaline,
+    Lithium
 
 } exitStatus;
 

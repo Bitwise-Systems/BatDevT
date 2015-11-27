@@ -29,23 +29,22 @@ exitStatus BatPresentCmd (char **args)
 }
 
 
-exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA, arg2 is minutes
+exitStatus ccCmd (char **args)     // Arg1 is targetMA, arg2 is minutes
 {
     exitStatus exitRC;
     int targetMA, minutes;
     unsigned long startRecordsTime;
-    float shuntMA, busV, voltCeiling;
+    float shuntMA, busV;
 
-    targetMA =    (*++args == NULL) ? 400        : constrain(atoi(*args), 0, 4000);    // max 4A to protect 2W .1ohm shunt resistor
-    minutes =     (*++args == NULL) ? 358        : constrain(atoi(*args), 1, 1440);    // 0.4A x 0.4V drop = 1.6W
-    voltCeiling = (*++args == NULL) ? maxBatVolt : constrain(atof(*args), SetVLow, SetVHigh);
+    targetMA = (*++args == NULL) ? 400 : constrain(atoi(*args), 0, MAmpCeiling);    // protect shunt resistor
+    minutes =  (*++args == NULL) ? 360 : constrain(atoi(*args), 1, 1440);
 
     Monitor(NULL, &busV);
     Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<testing initial high voltage>>
     exitRC = BatteryPresentQ(busV);
     if (exitRC != 0)
         return exitRC;
-    SetVoltage(busV + 0.020);      // final val should be slightly under batt voltage  ?remove .01 bump?
+    SetVoltage(busV + 0.050);      // final val should be slightly under batt voltage  ?remove .01 bump?
     PowerOn();
     delay(10);
     Monitor(&shuntMA, &busV);                                 // <<testing initial high voltage>>
@@ -54,11 +53,11 @@ exitStatus ccdCmd (char **args)     // Calls ConstantCurrent.  Arg1 is targetMA,
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
         Printf("No external power, exiting\n");
-        return DiodeTrip;
+        return IdealDiodeStatus;
     }
     PrintChargeParams(targetMA, minutes, false);      // False means no pulsing
     startRecordsTime = StartChargeRecords();
-    exitRC = ConstantCurrent(targetMA, minutes, voltCeiling);
+    exitRC = ConstantCurrent(targetMA, minutes);
     EndChargeRecords(startRecordsTime, exitRC);
     PowerOff();
     SetVoltage(SetVLow);
@@ -82,11 +81,11 @@ exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volt
     Monitor(&shuntMA, &busV);
     if (busV < 0.1) {
         Printf("Don't see a battery; exiting\n");
-        return MinV;
+        return NoBattery;
     }
     if  (shuntMA < -80.0)  {
         Printf("No external power; exiting");
-        return NegMA;
+        return IdealDiodeStatus;
     }
 
     PrintChargeParams(targetV, minutes, false);
@@ -322,51 +321,55 @@ exitStatus ReportHeats (char **args)
 }
 
 
+exitStatus ResistCmd (char **args)          // in mid-level
+{
+    (void) args;
+
+    ResistQ(1000);
+    delay(5000);
+    return Success;
+
+}
+
+
 exitStatus ScriptCmd (char **args)
 {
-    char c;
     exitStatus rc;
-    static char *chargeCmd[] = {"ccd","400","358","1.7", NULL};   // mA, minutes, upper volt limit
-                                                                  // std, 400-540-1.68
+
+    static char *chargeCmd[] = {"cc","600", NULL};
+//  static char *chargeCmd[] = {"cc","400", NULL};   // Default
+//  static char *chargeCmd[] = {"cc","1750", NULL};  // D-cell
+
     static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
                                                                   //..lower limit, rebound seconds
-                                                                  // std, 0.8-1.0-480
-//    static char *pulseCmd[] = {"ccp", "400", "393", "1.7", NULL};
-    
-                                                                  // 600, 246; 600, 265
-//  static char *chargeCmd[] = {"ccd","400", "4","1.7", NULL};    // TESTING
-//  static char *dischCmd[] = {"d", "1.3", "1.35", "10", NULL};   // TESTING
+    scriptrunning = true;                                         // std, 0.8-1.0-480
 
-    scriptrunning = true;
-
+    ResistQ(1000);
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
-        scriptrunning = false;
-        Printf("Premature exit from discharge\n");         // '~' included in non-zero rc handler
-        return rc;
+       scriptrunning = false;
+       Printf("Premature exit from discharge\n");
+       return rc;
     }
-    rc = ccdCmd(chargeCmd);
-    if (rc != Success) {
+    ResistQ(1000);
+    rc = ccCmd(chargeCmd);
+    if ((rc != DipDetected) && (rc != MaxTime) && (rc != ChargeTempThreshold)) {
         scriptrunning = false;
         Printf("Premature exit from constant charge\n");
         return rc;
     }
+    ResistQ(1000);
     rc = DischargeCmd(dischCmd);
     if (rc != Success) {
         scriptrunning = false;
         Printf("Premature exit from discharge\n");
         return rc;
     }
-    rc = ccdCmd(chargeCmd);
-    if (rc != Success) {
+    ResistQ(1000);
+    rc = ccCmd(chargeCmd);
+    if ((rc != DipDetected) && (rc != MaxTime) && (rc != ChargeTempThreshold)) {
         scriptrunning = false;
         Printf("Premature exit from constant charge\n");
-        return rc;
-    }
-    rc = DischargeCmd(dischCmd);
-    if (rc != Success) {
-        scriptrunning = false;
-        Printf("Premature exit from discharge\n");
         return rc;
     }
     scriptrunning = false;

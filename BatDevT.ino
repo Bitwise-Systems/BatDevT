@@ -24,10 +24,10 @@
 
 #undef Calibrate                   // Do NOT include calibration code
 
-#define vThresh       1.52         // Sets min voltage to start dip detection
-#define mAmpCeiling   4000         // Max allowable thru INA219 shunt resistor
-#define maxBatTemp    40.9         // Max allowed battery temperature
-#define maxBatVolt    1.70         // Max allowed battery voltage
+#define MAmpCeiling   3000         // Max allowable thru INA219 shunt resistor
+#define MaxBatTemp    40.9         // Max allowed battery temperature
+#define MaxBatVolt    1.70         // Max allowed battery voltage
+#define ChargeTemp    8.0          // Charge is complete if delta T exceeds 8.0 deg C
 
 #define typeCCRecord         0     // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
 #define typeCVRecord         1     // Use CTRecord format
@@ -40,10 +40,10 @@
 #define typeProvEndRecord   11     // not written yet, use EndRecord format
 #define typeJugsRecord      12     // not written yet
 #define typeNudgeRecord     13     // nudgeCount, potLevel, millis
-#define IResRec             14     // Internal Resistance record, ohms
+#define typeIResRec         14     // Internal Resistance record, ohms
 
-#define bandPlus  7.0              // ConstantCurrent upper band width
-#define bandMinus 3.0              // ConstantCurrent lower band width
+#define BandPlus  7.0              // ConstantCurrent upper band width
+#define BandMinus 3.0              // ConstantCurrent lower band width
 
 
 //-------------globals-------------
@@ -59,10 +59,9 @@ typedef struct DispatchTable {
 
 
 const struct DispatchTable commandTable[] = {
-    { "t",          TestFunc        },
     { "b",          SetID           },
     { "bp",         BatPresentCmd   },
-    { "ccd",        ccdCmd          },  // constantcurrent, dual bands
+    { "cc",         ccCmd           },
     { "cv",         cvCmd           },
     { "d",          DischargeCmd    },
     { "getpga",     GetPgaCmd       },
@@ -77,6 +76,7 @@ const struct DispatchTable commandTable[] = {
     { "off",        PwrOffCmd       },
     { "on",         PwrOnCmd        },
     { "pgood",      PwrGoodCmd      },
+    { "r",          ResistCmd       },
 //  { "rate",       ChargeRateCmd   },
     { "ram",        FreeRam         },
 //  { "s",          Sleep219        },
@@ -98,7 +98,7 @@ void setup (void)
 
     InitTLynx();
     if (Init219() == false) {
-        Printf("INA219 breakout board not found!");
+        Printf("INA219 not found!");
         while (1)
             ;
     }

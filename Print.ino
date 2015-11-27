@@ -19,7 +19,7 @@ void PrintChargeParams (float target, int minutes, boolean pulsed)
 
 unsigned long StartChargeRecords (void)
 {
-    Printf("AddData[%%runNum->{");
+    Printf("AddData[%%runNum->\n{");
     return millis();
 }
 
@@ -44,7 +44,7 @@ void PrintDischargeParams (void)
     Monitor(NULL, &busV);
     Printf("AddParm[%%runNum->\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\"];\n",
             battID, busV);
-    Printf("AddData[%%runNum->{");
+    Printf("AddData[%%runNum->\n{");
 
 }
 

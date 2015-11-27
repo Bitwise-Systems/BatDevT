@@ -4,43 +4,24 @@
 //                    drivers.
 //=======================================================================================
 
-exitStatus TestFunc (char **args)
+
+
+exitStatus BailOutQ (void)
 {
-    float chargingR;
-    float onV, onI, offV, offI;
+    float busV, batteryTemp, ambientTemp;
 
-    Monitor(&onI, &onV);
-    PowerOff();
-    delay(250);
-    Monitor(&offI, &offV);
-    chargingR = derivative(onV, offV, onI, offI);
-    PowerOn();
-    Printf("%1.4f\n", chargingR);
+    Monitor(NULL, &busV);
+    GetTemperatures(&batteryTemp, &ambientTemp);
 
-    return Success;
+    exitStatus bailRC = Success;       // success means no bail-outs tripped
 
-}
-
-
-float derivative (float y1, float y0, float x1, float x0) __attribute__ ((noinline));
-float derivative (float y1, float y0, float x1, float x0)
-{
-    return (y1 - y0) / (x1 - x0);
-
-}
-
-
-exitStatus BailOutQ (float busV, float battemp)
-{
-    exitStatus bailRC = Success;       // success means no bail-outs 'tripped'
-
-    if (battemp > maxBatTemp)   bailRC = MaxTemp;
-    if (busV > maxBatVolt)      bailRC = MaxV;
-    if (!PowerGoodQ())          bailRC = PBad;
-    if (StatusQ() == 1)         bailRC = DiodeTrip;     // will trip if used during off pulse
-    if (Serial.available() > 0) bailRC = ConsoleInterrupt;
+    if (batteryTemp > MaxBatTemp)   bailRC = PanicTemp;
+    if (busV > MaxBatVolt)          bailRC = PanicVoltage;
+    if (!PowerGoodQ())              bailRC = PBad;
+    if (StatusQ() == 1)             bailRC = IdealDiodeStatus;    // trips if used during off pulse
+    if (Serial.available() > 0)     bailRC = ConsoleInterrupt;
     if (bailRC != Success)
-        Printf("Bail! %1.3f V, %1.2f deg\n", busV, battemp);
+        Printf("(* Bail! %1.3f V, %1.2f deg *)\n", busV, batteryTemp);
 
     return bailRC;
 
@@ -57,25 +38,25 @@ exitStatus BatteryPresentQ (float busV)
     LoadBus();                                 // slight load removes ~1.3V stray from '219 on empty bus
 
     if (busV > 1.35) {
-        DetectRC = Alky;                       // 1.35 < alky > 1.60
+        DetectRC = Alkaline;                   // 1.35 < alkaline < 1.60
     }
-    if (busV > 1.60) {                         // 1.60 < lithium AA > 2.0
-        DetectRC = Lithi;
+    if (busV > 1.60) {                         // 1.60 < lithium AA < 2.0
+        DetectRC = Lithium;
     }
     if (busV > 2.0) {                          // > 2.0, wtf?bp
-        DetectRC = UnkBatt;
+        DetectRC = UnknownBattery;
     }
     if (busV < 0.1) {
         LightOn();                              // a load which passes thru the '219 shunt
         Monitor(&shuntMA, NULL);
         if (shuntMA < 0) {                      // reverse current comes from reverse polarity battery
-            DetectRC = BatRev;
+            DetectRC = ReversedBattery;
         }
         LightOff();
     }
     UnLoadBus();
     if (digitalRead(BatDetect) == HIGH) {
-        DetectRC = NoBatt;
+        DetectRC = NoBattery;
     }
     return DetectRC;                        // if batt detect pin is low, batt is present
                                             // ..also, 0.0 < busV < 1.35, assume nimh
@@ -101,23 +82,23 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
         timeStamp = millis();
         Monitor(&shuntMA, &busV);
         GetTemperatures(&batteryTemp, &ambientTemp);
-        bailRC = BailOutQ(busV, batteryTemp);
+        bailRC = BailOutQ();
 
         if (bailRC != 0)
             return bailRC;
-        if (shuntMA > mAmpCeiling)
+        if (shuntMA > MAmpCeiling)
             return MaxAmp;
         if (shuntMA < mAmpFloor)
             return MinAmp;
 
         while (busV < (targetV - closeEnough)) {
             if (NudgeVoltage(+1) == 0)
-                return BoundsCheck;
+                return UpperBound;
             Monitor(&shuntMA, &busV);
         }
         while (busV > (targetV + closeEnough)) {
             if (NudgeVoltage(-1) == 0)
-                return BoundsCheck;
+                return LowerBound;
             Monitor(&shuntMA, &busV);
         }
         if (HasExpired(ReportTimer))
@@ -157,20 +138,20 @@ exitStatus ThermMonitor (int minutes)
 //    Discharge
 //---------------------------------------------------------------------------------------
 
-exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
+exitStatus Discharge(float thresh1, float thresh2, unsigned reboundTime)
 {
     float shuntMA, busV;
     unsigned long start = millis();
 
     PowerOff();    // Ensure TLynx power isn't just running down the drain.
 
-   // HeavyOn();
+//  HeavyOn();
     MediumOn();                  // reduce load to approx that of standalone discharger
     LightOn();
     Monitor(&shuntMA, &busV);
     while (busV > thresh1) {
         if (Serial.available() > 0) {
-            // HeavyOff();
+            //  HeavyOff();
             MediumOff();
             LightOff();
             DisReport(shuntMA, busV, millis());
@@ -180,7 +161,7 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
             DisReport(shuntMA, busV, millis());
         Monitor(&shuntMA, &busV);
     }
-    // HeavyOff();
+//  HeavyOff();
     MediumOff();
     LightOff();
     StartTimer(ReboundTimer, reboundTime);   // mmm, no console escape during rebound...
@@ -205,16 +186,45 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
     }
 
     LightOff();
-        StartTimer(ReboundTimer, reboundTime);   // mmm, no console escape during rebound...
-        while (IsRunning(ReboundTimer)) {        // add'l rebound for following scripted cmds
-            if (HasExpired(ReportTimer)) {
-                Monitor(&shuntMA, &busV);
-                DisReport(shuntMA, busV, millis());
+    StartTimer(ReboundTimer, reboundTime);   // mmm, no console escape during rebound...
+    while (IsRunning(ReboundTimer)) {        // add'l rebound for following scripted cmds
+        if (HasExpired(ReportTimer)) {
+            Monitor(&shuntMA, &busV);
+            DisReport(shuntMA, busV, millis());
         }
     }
 
     DisReport(shuntMA, busV, millis());
     return Success;
+}
+
+
+//---------------------------------------------------------------------------------------
+//    ResistQ  --
+//---------------------------------------------------------------------------------------
+
+float ResistQ (unsigned delayMS)
+{
+    float shunt1stMA, bus1stV, ohms;
+    float shunt2ndMA, bus2ndV, denom;
+
+    Monitor(NULL, &bus1stV);
+    SetVoltage(bus1stV + 0.100);
+    PowerOn();  delay(delayMS);
+    Monitor(&shunt1stMA, &bus1stV);
+    PowerOff();  delay(delayMS);
+    Monitor(&shunt2ndMA, &bus2ndV);
+    denom = (shunt1stMA - shunt2ndMA);
+    if (denom == 0.0) denom = 0.001;
+    ohms = abs((1000.0 * (bus2ndV - bus1stV)) / denom);
+    Printf("%1.4f ohms charge resistance\n", ohms);
+    LightOn(); delay(delayMS);
+    Monitor(&shunt1stMA, &bus1stV);
+    denom = (shunt2ndMA - shunt1stMA);
+    if (denom == 0.0) denom = 0.001;
+    ohms = abs((1000.0 * (bus2ndV - bus1stV)) / denom);
+    Printf("%1.4f ohms internal resistance\n", ohms);
+    LightOff(); delay(10);
 }
 
 

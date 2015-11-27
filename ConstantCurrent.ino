@@ -1,92 +1,72 @@
 //---------------------------------------------------------------------------------------
 //    ConstantCurrent.ino -- Charge at a specified current level until battery
-//                           reaches full capacity, a time limit is exceeded, or
-//                           any of various charging anomalies occurs.
-//
-//    . Put bail-out tests into a separate routine.
-//    . Removed nudge testing code.
-//    . Switched timer management over to virtual timer package.
-//    . Ramp-up now occurs separately from maintenance loop.
-//    . Removed 10-minute extension timer from end-of-charge detector.
+//                           reaches full capacity, or any of various charging
+//                           anomalies occurs.
 //
 //---------------------------------------------------------------------------------------
 
-
-exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
+exitStatus ConstantCurrent (float targetMA, unsigned durationM)
 {
-    exitStatus bailRC;
-    unsigned long timeStamp;
-    float shuntMA, busV, batteryTemp, ambientTemp;
-    float upperBound, lowerBound, upperTarget, lowerTarget;
+    exitStatus rc;
+    float shuntMA, upperBound, lowerBound, upperTarget, lowerTarget;
 
-    upperBound  = targetMA + bandPlus;
-    lowerBound  = targetMA - bandMinus;
+    upperBound  = targetMA + BandPlus;
+    lowerBound  = targetMA - BandMinus;
     upperTarget = targetMA + 0.05;
     lowerTarget = targetMA - 0.05;
 
-    ActivateDetector();
-    ResyncTimer(ReportTimer);
-    StartTimer(MaxChargeTimer, (durationM * 60.0));
-    StartTimer(OneShotTestTimer, (3 * 60.0));
+    ActivateDetector(durationM);          // Initialize end-of-charge detector
 
-    while (IsRunning(MaxChargeTimer)) {     // Single-step ramp-up
-        timeStamp = millis();
-        Monitor(&shuntMA, &busV);
-        GetTemperatures(&batteryTemp, &ambientTemp);
-        bailRC = BailOutQ(busV, batteryTemp);
+    if ((rc = RampUp(lowerTarget)) != Success)    // Ramp up to target current
+        return rc;
 
-        if (bailRC != 0)
-            return bailRC;
+    while (true) {                                // Maintain constant current...
+        if ((rc = BailOutQ()))
+            return rc;
 
-        else if (shuntMA > lowerTarget) {
-            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
-            break;
-        }
-        else if (NudgeVoltage(+1) == 0)
-            return BoundsCheck;
+        if ((rc = (exitStatus) FullyChargedQ()))
+            return rc;
 
-        if (HasExpired(ReportTimer))
-            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+        Monitor(&shuntMA, NULL);
 
-    }   // Drop thru only if we ramped up to 'lowerTarget', or ran out of time trying
-
-    while (IsRunning(MaxChargeTimer)) {     // Maintain constant current
-        timeStamp = millis();
-        Monitor(&shuntMA, &busV);
-        GetTemperatures(&batteryTemp, &ambientTemp);
-        bailRC = BailOutQ(busV, batteryTemp);
-
-        if (bailRC != 0)
-            return bailRC;
-
-       // if (! IsRunning(OneShotTestTimer)) {   // early success for script testing
-       //     Printf("{666, \"Early Success - Testing\"},\n");
-       //     return Success;
-       // }
-
-        if (shuntMA < lowerBound)        // nudge upwards
+        if (shuntMA < lowerBound)                     // nudge upwards
             do {
                 if (NudgeVoltage(+1) == 0)
-                    return BoundsCheck;
-                timeStamp = millis();
-                Monitor(&shuntMA, &busV);
+                    return UpperBound;
+                Monitor(&shuntMA, NULL);
             } while (shuntMA < lowerTarget);
 
-        else if (shuntMA > upperBound)   // nudge downwards
+        else if (shuntMA > upperBound)                // nudge downwards
             do {
                 if (NudgeVoltage(-1) == 0)
-                    return BoundsCheck;
-                timeStamp = millis();
-                Monitor(&shuntMA, &busV);
+                    return LowerBound;
+                Monitor(&shuntMA, NULL);
             } while (shuntMA > upperTarget);
 
-        if (HasExpired(ReportTimer)) {
-            CTReport(typeCCRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
-            if (FullyCharged(shuntMA, (batteryTemp - ambientTemp)))
-                return Success;
-        }
     }
-    return MaxTime;
+
+}
+
+
+exitStatus RampUp (float targetMA)
+{
+    float shuntMA, busV, batteryTemp, ambientTemp;
+
+    Monitor(&shuntMA, NULL);
+    while (shuntMA < targetMA) {
+        if (NudgeVoltage(+1) == 0)     // Single-step ramp-up
+            return UpperBound;
+        if (HasExpired(ReportTimer)) {
+            Monitor(NULL, &busV);
+            GetTemperatures(&batteryTemp, &ambientTemp);
+            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, millis());
+        }
+        Monitor(&shuntMA, NULL);
+    }
+    Monitor(NULL, &busV);
+    GetTemperatures(&batteryTemp, &ambientTemp);
+    CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, millis());
+    return Success;
 
 }
 
@@ -95,49 +75,54 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM, float maxV)
 //    Charge-complete detector package
 //---------------------------------------------------------------------------------------
 
-int runLength;
-float previousMA;
+static int runLength;
+static float previousMA;
 
-void ActivateDetector (void)
+void ActivateDetector (unsigned chargeTimeM)
 {
-    InitSavitzky(&savitskyStructure, dataWindow);
-
-    StartTimer(ArmDetectorTimer, (10 * 60.0));    // 10 minutes
     runLength = 0;
     previousMA = 10000.0;
+
+    InitSavitzky(&savitskyStructure, dataWindow);
+
+    StartTimer(MaxChargeTimer, (chargeTimeM * 60.0));
+    StartTimer(ArmDetectorTimer, (10 * 60.0));      // 10 minutes
+    ResyncTimer(ReportTimer);
 
 }
 
 
-boolean FullyCharged (float shuntMA, float tempDifferential)
+boolean FullyChargedQ (void)
 {
-    float smoothedMA;
+    unsigned long timeStamp;
+    float shuntMA, smoothedMA, busV, batteryTemp, ambientTemp;
 
-    if (IsRunning(ArmDetectorTimer))    // No detectors for 1st ten minutes
+    if (! HasExpired(ReportTimer))    // Check at 5-second intervals
         return false;
 
-    if (tempDifferential < 3.0)
+    timeStamp = millis();
+    Monitor(&shuntMA, &busV);
+    GetTemperatures(&batteryTemp, &ambientTemp);
+    CTReport(typeCCRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+
+    if (! IsRunning(MaxChargeTimer))
+        return MaxTime;
+
+    if ((batteryTemp - ambientTemp) > ChargeTemp)
+        return ChargeTempThreshold;
+
+    if ((batteryTemp - ambientTemp) < 3.0)
+        return false;
+
+    if (IsRunning(ArmDetectorTimer))    // No detectors for 1st ten minutes
         return false;
 
     smoothedMA = Savitzky(shuntMA, &savitskyStructure);
     runLength = (smoothedMA > previousMA) ? runLength + 1 : 0;
     previousMA = smoothedMA;
-    if (runLength > 12) {
-        CTReport(typeDetectRecord, shuntMA, 0.0, tempDifferential, 0.0, millis());
-        return true;
-    }
+    if (runLength > 12)
+        return DipDetected;
+
     return false;
 
 }
-
-
-//---------------------------------------------------------------------------------------
-//    Alternative current trend detector:
-//
-//    runLength = (shuntMA < previousMA) ? 0 : runLength + 1;
-//    previousMA = shuntMA;
-//    if (runLength > 5)
-//        return true;
-//
-//---------------------------------------------------------------------------------------
-
