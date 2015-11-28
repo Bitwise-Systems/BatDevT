@@ -75,8 +75,7 @@ void InitSavitzky (struct SavStruct *s, float *windowBuffer)
 //----------------------------------------------------------------------------------------
 //  Savitzky -- Return the "smoothed" value associated with the most recent data, x.
 //              Requires a pointer to a structure that manages the window buffer (and
-//              eventually other matters). Areas for improvement: dynamic allocation
-//              of window buffers.
+//              eventually other matters).
 //----------------------------------------------------------------------------------------
 
 float Savitzky (float x, struct SavStruct *s)
