@@ -47,6 +47,44 @@ void LightOff (void)
     digitalWrite(LightLoadGate, LOW);
 }
 
+
+void AllLoadsOff (void)                   // except bus load
+{
+    digitalWrite(HeavyLoadGate, LOW);
+    digitalWrite(MediumLoadGate, LOW);
+    digitalWrite(LightLoadGate, LOW);
+
+}
+
+
+void LoadByCapacity (void)
+{
+    if (capacity < 1000) {                           // @1.2V, 120mA
+        LightOn();
+    }
+    if (1000 <= capacity && capacity < 1600) {       // @1.2V, 255mA
+        MediumOn();
+    }
+    if (1600 <= capacity && capacity < 2500) {       // @1.2V, 375mA
+        LightOn();
+        MediumOn();
+    }
+    if (2500 <= capacity && capacity < 3500) {       // @1.2V, 600mA
+        HeavyOn();
+    }
+    if (3500 <= capacity && capacity < 5000) {       // @1.2V, 855mA
+        MediumOn();
+        HeavyOn();
+    }
+    if (5000 <= capacity) {                          // @1.2V, 975mA
+        LightOn();
+        MediumOn();
+        HeavyOn();
+    }
+
+}
+
+
 void LoadBus (void)                      // INA219 is 'leaking' ~1.3V onto busbars with no battery
 {                                        // .. load bus to reduce extra voltage to ~ 200mV
     pinMode(BusLoad, OUTPUT);

@@ -17,6 +17,17 @@ void PrintChargeParams (float target, int minutes, boolean pulsed)
 }
 
 
+void PrintDischargeParams (void)
+{
+    float busV;
+
+    Monitor(NULL, &busV);
+    Printf("AddParm[%%runNum->\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\"];\n",
+            battID, busV);
+    Printf("AddData[%%runNum->\n{");
+
+}
+
 unsigned long StartChargeRecords (void)
 {
     Printf("AddData[%%runNum->\n{");
@@ -29,7 +40,7 @@ void EndChargeRecords (unsigned long startingTime, exitStatus rc)
     ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
 
     Printf("{%d, \"%lu mins %lu secs elapsed\", \"Pot: %d\", ",
-            typeEndRecord, qr.quot, qr.rem, GetPotLevel());
+            typeEnd, qr.quot, qr.rem, GetPotLevel());
 
     ReportExitStatus(rc);
     Printf("}}];\n");
@@ -37,35 +48,18 @@ void EndChargeRecords (unsigned long startingTime, exitStatus rc)
 }
 
 
-void PrintDischargeParams (void)
-{
-    float busV;
-
-    Monitor(NULL, &busV);
-    Printf("AddParm[%%runNum->\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\"];\n",
-            battID, busV);
-    Printf("AddData[%%runNum->\n{");
-
-}
-
-
 void EndDischargeRecords (void)
 {
-    Printf("{%d}}];\n", typeEndRecord);
+    Printf("{%d}}];\n", typeEnd);
 }
 
 
-void CTReport (int type, float shuntMA, float busV, float thermLoad, float thermAmbient, unsigned long millisecs)
+void GenReport (int recordType, float shuntMA, float busV, unsigned long millisecs)
 {
-    Printf("{%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu},\n", type, shuntMA, busV, thermLoad, thermAmbient, millisecs);
+    float batteryTemp, ambientTemp;
+    GetTemperatures(&batteryTemp, &ambientTemp);
+    Printf("{%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu},\n", recordType, shuntMA, busV, batteryTemp, ambientTemp, millisecs);
 }
-
-
-void DisReport (float shuntMA, float busV, unsigned long millisecs)
-{
-    Printf("{%d,%1.3f,%1.4f,%lu},\n", typeDischargeRecord, shuntMA, busV, millisecs);
-}
-
 
 void ReportExitStatus (exitStatus rc)
 {

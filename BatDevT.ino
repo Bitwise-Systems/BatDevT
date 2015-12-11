@@ -7,11 +7,11 @@
 //
 //    Version 4.0: Port previous application to new drivers
 //
-//
 //    Version 4.1: Changed Duemilanove bootloader to OptiBoot, gaining ~1500 bytes
-//                 Update eepromhelp.ino
 //
 //    Version 4.2: Inaugurate use of new virtual timer package
+//
+//    Version 4.3: Switch smoothing filter from Savitzky-Golay to Gaussian
 //
 //
 
@@ -20,27 +20,29 @@
 #include <Utility.h>
 #include "Drivers.h"
 #include "DriverTimer.h"
-#include "Savitzky.h"
+#include "Smoothing.h"
 
 #undef Calibrate                   // Do NOT include calibration code
 
 #define MAmpCeiling   3000         // Max allowable thru INA219 shunt resistor
 #define MaxBatTemp    40.9         // Max allowed battery temperature
-#define MaxBatVolt    1.70         // Max allowed battery voltage
+#define MaxBatVolt    1.72         // Max allowed battery voltage
 #define ChargeTemp    8.0          // Charge is complete if delta T exceeds 8.0 deg C
 
-#define typeCCRecord         0     // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
-#define typeCVRecord         1     // Use CTRecord format
-#define typeDetectRecord     2     // Dip Detected; CTRecord format
-#define typeThermRecord      3     // Use CTRecord format
-#define typeRampUpRecord     4     // Used in ConstantCurrent during ramp-up phase
-#define typePulseRecord      5     // Taken during 'off' pulse while charging    CTRecord format
-#define typeDischargeRecord  9     // Use CTRecord format, not written yet
-#define typeEndRecord       10     // Elapsed time, exitStatus
-#define typeProvEndRecord   11     // not written yet, use EndRecord format
-#define typeJugsRecord      12     // not written yet
-#define typeNudgeRecord     13     // nudgeCount, potLevel, millis
-#define typeIResRec         14     // Internal Resistance record, ohms
+
+//--------------Record types--------------
+#define typeCC         0     // CTRecord format: shuntMA, busV, thermLoad, thermAmbient, millisecs
+#define typeCV         1     // Use CTRecord format
+#define typeDetect     2     // Dip Detected; CTRecord format
+#define typeTherm      3     // Use CTRecord format
+#define typeRampUp     4     // Used in ConstantCurrent during ramp-up phase
+#define typePulse      5     // Taken during 'off' pulse while charging    CTRecord format
+#define typeDischarge  9     // Use CTRecord format
+#define typeEnd       10     // Elapsed time, exitStatus
+#define typeProvEnd   11     // not written yet, use EndRecord format
+#define typeJugs      12     // not written yet
+#define typeNudge     13     // nudgeCount, potLevel, millis
+#define typeIRes      14     // Internal Resistance record, ohms
 
 #define BandPlus  7.0              // ConstantCurrent upper band width
 #define BandMinus 3.0              // ConstantCurrent lower band width
@@ -49,6 +51,8 @@
 //-------------globals-------------
 
 char battID[20] = "<undefined>";
+int capacity = 2400;                      // Battery capacity in mAh
+
 
 boolean scriptrunning = false;            // Regulates issuance of '~' to close external records file
 
@@ -59,7 +63,9 @@ typedef struct DispatchTable {
 
 
 const struct DispatchTable commandTable[] = {
+    { "gauss",      TestGauss       },             // <<< TESTING Gaussian smoothing >>>
     { "b",          SetID           },
+    { "bc",         SetCapacity     },
     { "bp",         BatPresentCmd   },
     { "cc",         ccCmd           },
     { "cv",         cvCmd           },
@@ -69,8 +75,7 @@ const struct DispatchTable commandTable[] = {
     { "help",       PrintHelp       },
     { "iget",       iGetCmd         },
     { "loff",       LoffCmd         },  // Load off
-    { "lon",        LonCmd          },  // Load on, args h, m, l, b [hi, med, lo, bus]
-//  { "internal",   IntResistCmd    },
+    { "lon",        LonCmd          },  // Load on; args h, m, l, b [hi, med, lo, bus]
 //  { "jugs",       ReportJugs      },
     { "nudge",      NudgeCmd        },
     { "off",        PwrOffCmd       },
@@ -84,7 +89,6 @@ const struct DispatchTable commandTable[] = {
     { "setpga",     PgaCmd          },
     { "tell",       Report          },
     { "thermo",     ThermLoop       },  // Access to 'ThermMonitor'
-//  { "trial",      ConstCurrTrial  },
     { "vget",       vGetCmd         },
     { "vset",       VsetCmd         },
     {  NULL,        unknownCommand  }   // Insert additional commands BEFORE this line

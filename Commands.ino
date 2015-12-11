@@ -15,6 +15,67 @@
 //
 //
 
+//---------------------------------------------------------------------------------------
+//    TestGauss -- Test Gaussian smoothing during discharge
+//---------------------------------------------------------------------------------------
+
+exitStatus TestGauss (char **args)        // Temperature records
+{
+    float busV, batteryTemp, ambientTemp, deltaT;
+
+    PowerOff();
+    MediumOn();
+    LightOn();
+
+    InitSmoothing(&gaussStructure, kernelBuffer);
+    ResyncTimer(ReportTimer);
+    Monitor(NULL, &busV);
+    while (busV > 0.8) {
+        if (Serial.available() > 0) {
+            AllLoadsOff();
+            return ConsoleInterrupt;
+        }
+        if (HasExpired(ReportTimer)) {
+            GetTemperatures(&batteryTemp, &ambientTemp);
+            deltaT = batteryTemp - ambientTemp;
+            Printf("{666,%1.6f,%1.6f},", deltaT, Smooth(deltaT, &gaussStructure));
+        }
+        Monitor(NULL, &busV);
+    }
+    AllLoadsOff();
+    Printf("\nDone\n");
+    return Success;
+
+}
+
+
+// exitStatus TestGauss (char **args)        // Voltage records
+// {
+//     float busV;
+//
+//     PowerOff();
+//     MediumOn();
+//     LightOn();
+//
+//     InitSmoothing(&gaussStructure, kernelBuffer);
+//     ResyncTimer(ReportTimer);
+//     Monitor(NULL, &busV);
+//     while (busV > 1.1) {
+//         if (Serial.available() > 0) {
+//             AllLoadsOff();
+//             return ConsoleInterrupt;
+//         }
+//         if (HasExpired(ReportTimer))
+//             Printf("{666,%1.6f,%1.6f},", busV, Smooth(busV, &gaussStructure));
+//
+//         Monitor(NULL, &busV);
+//     }
+//     AllLoadsOff();
+//     return Success;
+//
+// }
+
+
 exitStatus BatPresentCmd (char **args)
 {
     exitStatus rc;
@@ -29,26 +90,42 @@ exitStatus BatPresentCmd (char **args)
 }
 
 
-exitStatus ccCmd (char **args)     // Arg1 is targetMA, arg2 is minutes
+exitStatus ccCmd (char **args)     // arg1 is targetMA, arg2 is minutes
 {
     exitStatus exitRC;
-    int targetMA, minutes;
-    unsigned long startRecordsTime;
     float shuntMA, busV;
+    unsigned long startRecordsTime;
 
-    targetMA = (*++args == NULL) ? 400 : constrain(atoi(*args), 0, MAmpCeiling);    // protect shunt resistor
-    minutes =  (*++args == NULL) ? 360 : constrain(atoi(*args), 1, 1440);
+    float divisor = 4.0;                      // Default C-rate = C/4
+    float targetMA = capacity / divisor;
+    float minutes = (57.0 * divisor) + 45.0;
+
+    int i = 0;
+    while (*++args != NULL) {
+        switch (++i) {
+          case 1:
+            targetMA = constrain(atof(*args), 1.0, MAmpCeiling);
+            divisor = capacity / targetMA;
+            minutes = (57.0 * divisor) + 45.0;
+            break;
+          case 2:
+            minutes = atof(*args);
+            break;
+        }
+    }
+    minutes = constrain(minutes, 1.0, 1440.0);
+    Printf("targetMA = %1.1f; minutes = %1.1f\n", targetMA, minutes);
 
     Monitor(NULL, &busV);
-    Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<testing initial high voltage>>
+    Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<< testing initial high voltage >>>
     exitRC = BatteryPresentQ(busV);
     if (exitRC != 0)
         return exitRC;
     SetVoltage(busV + 0.050);      // final val should be slightly under batt voltage  ?remove .01 bump?
     PowerOn();
     delay(10);
-    Monitor(&shuntMA, &busV);                                 // <<testing initial high voltage>>
-    Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<testing initial high voltage>>
+    Monitor(&shuntMA, &busV);                                 // <<< testing initial high voltage >>>
+    Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<< testing initial high voltage >>>
 
     if (StatusQ() == 1)  {       // if so, could be lack of external power
         PowerOff();
@@ -66,6 +143,7 @@ exitStatus ccCmd (char **args)     // Arg1 is targetMA, arg2 is minutes
     return exitRC;
 
 }
+
 
 exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volts,
 {                                  // ...arg2 is minutes, arg3: bail at or below this value
@@ -300,11 +378,10 @@ exitStatus PwrOffCmd (char **args)
 exitStatus Report (char **args)
 {
     (void) args;
-    float busV, shuntMA, thermLoad, thermAmbient;
+    float busV, shuntMA;
 
     Monitor(&shuntMA, &busV);
-    GetTemperatures(&thermLoad, &thermAmbient);
-    CTReport(-1, shuntMA, busV, thermLoad, thermAmbient, millis());
+    GenReport(-1, shuntMA, busV, millis());
     return Success;
 
 }
@@ -336,13 +413,15 @@ exitStatus ScriptCmd (char **args)
 {
     exitStatus rc;
 
-    static char *chargeCmd[] = {"cc","600", NULL};
+    static char *chargeCmd[] = {"cc", NULL};
+//  static char *chargeCmd[] = {"cc","600", NULL};
 //  static char *chargeCmd[] = {"cc","400", NULL};   // Default
 //  static char *chargeCmd[] = {"cc","1750", NULL};  // D-cell
 
     static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
                                                                   //..lower limit, rebound seconds
     scriptrunning = true;                                         // std, 0.8-1.0-480
+//  ThermMonitor(10);
 
     ResistQ(1000);
     rc = DischargeCmd(dischCmd);
@@ -385,6 +464,24 @@ exitStatus SetID (char **args)
         strncpy(battID, *args, (sizeof battID) - 1);
 
     Printf("Battery ID: %s\n", battID);
+    return Success;
+
+}
+
+
+exitStatus SetCapacity (char **args)
+{
+    int mA = capacity;
+
+    if ((args != NULL) && (*++args != NULL))
+        mA = atoi(*args);
+
+    if (mA < 500)
+        Printf("Error: capacity too low\n");
+    else
+        capacity = mA;
+
+    Printf("Battery mAH: %d\n", capacity);
     return Success;
 
 }

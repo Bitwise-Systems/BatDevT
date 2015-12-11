@@ -42,7 +42,7 @@ typedef enum {
 
 
 volatile struct FreeRunningStruct freeRunning[] = {
-    { Seconds(5.0) }, { Seconds(1.0) }, { Seconds(12.0) }
+    { Seconds(5.0) }
 };
 
 #define NumFreeRunning (sizeof freeRunning / sizeof(struct FreeRunningStruct))

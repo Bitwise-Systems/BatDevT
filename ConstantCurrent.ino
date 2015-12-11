@@ -21,10 +21,10 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM)
         return rc;
 
     while (true) {                                // Maintain constant current...
-        if ((rc = BailOutQ()))
+        if (rc = BailOutQ())
             return rc;
 
-        if ((rc = (exitStatus) FullyChargedQ()))
+        if (rc = (exitStatus) FullyChargedQ())
             return rc;
 
         Monitor(&shuntMA, NULL);
@@ -50,7 +50,7 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM)
 
 exitStatus RampUp (float targetMA)
 {
-    float shuntMA, busV, batteryTemp, ambientTemp;
+    float shuntMA, busV;
 
     Monitor(&shuntMA, NULL);
     while (shuntMA < targetMA) {
@@ -58,14 +58,12 @@ exitStatus RampUp (float targetMA)
             return UpperBound;
         if (HasExpired(ReportTimer)) {
             Monitor(NULL, &busV);
-            GetTemperatures(&batteryTemp, &ambientTemp);
-            CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, millis());
+            GenReport(typeRampUp, shuntMA, busV, millis());
         }
         Monitor(&shuntMA, NULL);
     }
     Monitor(NULL, &busV);
-    GetTemperatures(&batteryTemp, &ambientTemp);
-    CTReport(typeRampUpRecord, shuntMA, busV, batteryTemp, ambientTemp, millis());
+    GenReport(typeRampUp, shuntMA, busV, millis());
     return Success;
 
 }
@@ -83,7 +81,7 @@ void ActivateDetector (unsigned chargeTimeM)
     runLength = 0;
     previousMA = 10000.0;
 
-    InitSavitzky(&savitskyStructure, dataWindow);
+    InitSmoothing(&gaussStructure, kernelBuffer);
 
     StartTimer(MaxChargeTimer, (chargeTimeM * 60.0));
     StartTimer(ArmDetectorTimer, (10 * 60.0));      // 10 minutes
@@ -103,7 +101,7 @@ boolean FullyChargedQ (void)
     timeStamp = millis();
     Monitor(&shuntMA, &busV);
     GetTemperatures(&batteryTemp, &ambientTemp);
-    CTReport(typeCCRecord, shuntMA, busV, batteryTemp, ambientTemp, timeStamp);
+    GenReport(typeCC, shuntMA, busV, timeStamp);
 
     if (! IsRunning(MaxChargeTimer))
         return MaxTime;
@@ -117,7 +115,7 @@ boolean FullyChargedQ (void)
     if (IsRunning(ArmDetectorTimer))    // No detectors for 1st ten minutes
         return false;
 
-    smoothedMA = Savitzky(shuntMA, &savitskyStructure);
+    smoothedMA = Smooth(shuntMA, &gaussStructure);
     runLength = (smoothedMA > previousMA) ? runLength + 1 : 0;
     previousMA = smoothedMA;
     if (runLength > 12)
