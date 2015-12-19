@@ -24,13 +24,14 @@ void PrintDischargeParams (void)
     Monitor(NULL, &busV);
     Printf("AddParm[%%runNum->\"BattID=%s, StartVoltage=%1.3f, Platform=Integrated\"];\n",
             battID, busV);
-    Printf("AddData[%%runNum->\n{");
+    Printf("AddData[%%runNum->{");
 
 }
 
+
 unsigned long StartChargeRecords (void)
 {
-    Printf("AddData[%%runNum->\n{");
+    Printf("AddData[%%runNum->{");
     return millis();
 }
 
@@ -57,9 +58,12 @@ void EndDischargeRecords (void)
 void GenReport (int recordType, float shuntMA, float busV, unsigned long millisecs)
 {
     float batteryTemp, ambientTemp;
+
     GetTemperatures(&batteryTemp, &ambientTemp);
     Printf("{%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu},\n", recordType, shuntMA, busV, batteryTemp, ambientTemp, millisecs);
+
 }
+
 
 void ReportExitStatus (exitStatus rc)
 {
