@@ -1,14 +1,15 @@
-//
-//      Loads.ino  --  Drivers for discharger board resistive loads
-//
+//---------------------------------------------------------------------------------------
+//      Loads.ino  --  Drivers for discharger board (and other) resistive loads
+//---------------------------------------------------------------------------------------
 
 void InitLoads (void)
 {
     pinMode(HeavyLoadGate, OUTPUT);
     pinMode(MediumLoadGate, OUTPUT);
     pinMode(LightLoadGate, OUTPUT);
-    pinMode(BusLoad, INPUT);             // HI-Z means no affect on bus voltage
-//  pinMode(BatDetect, INPUT_PULLUP);    // reads high until inserted battery pulls it low  <<< Prevent 5V always on bus
+
+    AllLoadsOff();    // Includes setting BusLoad to hi-Z & no pull-up on BatDetect
+
 }
 
 
@@ -48,11 +49,45 @@ void LightOff (void)
 }
 
 
-void AllLoadsOff (void)                   // except bus load
+//    The INA219 is impressing a "ghost" voltage onto the positive bus (V- pin).
+//    Switching in the BusLoad resistor reduces this voltage to about a quarter
+//    of the unloaded value. On Mike's system, the non-load voltage is 1.076 V;
+//    loaded it's 0.289 volts (12/14/15). On Hutch's: 1.052 and 0.278 V (12/17/15).
+
+void LoadBus (void)
 {
-    digitalWrite(HeavyLoadGate, LOW);
-    digitalWrite(MediumLoadGate, LOW);
-    digitalWrite(LightLoadGate, LOW);
+    pinMode(BusLoad, OUTPUT);
+    digitalWrite(BusLoad, LOW);     // Ground bus through a 4.3K resistor
+}
+
+
+void UnLoadBus (void)
+{
+    pinMode(BusLoad, INPUT);        // HI-Z to stop loading the bus
+}
+
+
+void Impress (void)         // Impress +5V on the battery bus
+{
+    pinMode(BatDetect, INPUT_PULLUP);    // Connect Vcc to bus thru 20-50K pullup
+
+}
+
+
+void RemoveImpress (void)
+{
+    pinMode(BatDetect, INPUT);
+
+}
+
+
+void AllLoadsOff (void)
+{
+    HeavyOff();
+    MediumOff();
+    LightOff();
+    UnLoadBus();
+    RemoveImpress();
 
 }
 
@@ -65,11 +100,11 @@ void LoadByCapacity (void)
     if (1000 <= capacity && capacity < 1600) {       // @1.2V, 255mA
         MediumOn();
     }
-    if (1600 <= capacity && capacity < 2500) {       // @1.2V, 375mA
+    if (1600 <= capacity && capacity < 2100) {       // @1.2V, 375mA
         LightOn();
         MediumOn();
     }
-    if (2500 <= capacity && capacity < 3500) {       // @1.2V, 600mA
+    if (2100 <= capacity && capacity < 3500) {       // @1.2V, 600mA
         HeavyOn();
     }
     if (3500 <= capacity && capacity < 5000) {       // @1.2V, 855mA
@@ -85,27 +120,12 @@ void LoadByCapacity (void)
 }
 
 
-void LoadBus (void)                      // INA219 is 'leaking' ~1.3V onto busbars with no battery
-{                                        // .. load bus to reduce extra voltage to ~ 200mV
-    pinMode(BusLoad, OUTPUT);
-    digitalWrite(BusLoad, LOW);             // ground positive batt bus (via ~ 1K load resistor)
-}
-
-
-void UnLoadBus (void)
-{
-    pinMode(BusLoad, INPUT);                   // make it HI-Z to stop loading the bus
-}
-
-//------------------- temporary aux functions ------------
-
-void LoadCheck (void)
-{
-    float shuntMA;
-
-    Printf("Ideal diode MOSFET is %s\n", (StatusQ() == 0) ? "ON" : "OFF");
-
-    Monitor(&shuntMA, NULL);
-    Printf("%1.4f mA\n", shuntMA);
-}
-
+// void LoadCheck (void)
+// {
+//     float shuntMA;
+//
+//     Printf("Ideal diode MOSFET is %s\n", (StatusQ() == 0) ? "ON" : "OFF");
+//
+//     Monitor(&shuntMA, NULL);
+//     Printf("%1.4f mA\n", shuntMA);
+// }

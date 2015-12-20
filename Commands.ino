@@ -1,97 +1,22 @@
 //
 //      Commands.ino  --  Handlers for interpreter commands
 //
-//      Remove large data headers from ccdCmd and cvCmd and replace the functionality
-//      ...with PrintCCInfo and CVInfo   9/3/14
-//
-//      Replace individual load on/off commands with single cmd and arg 6/30/15
-//      Remove some testing commands:
-//      -- tuglines, looking for who is causing extra voltage on bus
-//      -- thCmd, monitors temps and reports
-//
-//      Reduced FreeRam from two types of ram reports to one
-//      Tracked extra voltage on bus (with no battery) to INA219
-//      "help" command functionality moved to terminal monitor
-//
-//
-
-//---------------------------------------------------------------------------------------
-//    TestGauss -- Test Gaussian smoothing during discharge
-//---------------------------------------------------------------------------------------
-
-exitStatus TestGauss (char **args)        // Temperature records
-{
-    float busV, batteryTemp, ambientTemp, deltaT;
-
-    PowerOff();
-    MediumOn();
-    LightOn();
-
-    InitSmoothing(&gaussStructure, kernelBuffer);
-    ResyncTimer(ReportTimer);
-    Monitor(NULL, &busV);
-    while (busV > 0.8) {
-        if (Serial.available() > 0) {
-            AllLoadsOff();
-            return ConsoleInterrupt;
-        }
-        if (HasExpired(ReportTimer)) {
-            GetTemperatures(&batteryTemp, &ambientTemp);
-            deltaT = batteryTemp - ambientTemp;
-            Printf("{666,%1.6f,%1.6f},", deltaT, Smooth(deltaT, &gaussStructure));
-        }
-        Monitor(NULL, &busV);
-    }
-    AllLoadsOff();
-    Printf("\nDone\n");
-    return Success;
-
-}
-
-
-// exitStatus TestGauss (char **args)        // Voltage records
-// {
-//     float busV;
-//
-//     PowerOff();
-//     MediumOn();
-//     LightOn();
-//
-//     InitSmoothing(&gaussStructure, kernelBuffer);
-//     ResyncTimer(ReportTimer);
-//     Monitor(NULL, &busV);
-//     while (busV > 1.1) {
-//         if (Serial.available() > 0) {
-//             AllLoadsOff();
-//             return ConsoleInterrupt;
-//         }
-//         if (HasExpired(ReportTimer))
-//             Printf("{666,%1.6f,%1.6f},", busV, Smooth(busV, &gaussStructure));
-//
-//         Monitor(NULL, &busV);
-//     }
-//     AllLoadsOff();
-//     return Success;
-//
-// }
-
 
 exitStatus BatPresentCmd (char **args)
 {
-    exitStatus rc;
-    float busV;
-
-    Monitor(NULL, &busV);
-    rc = BatteryPresentQ(busV);
-    ReportExitStatus(rc);
-    Printf("\n");
-    return Success;
+    return BatteryPresentQ();
 
 }
 
 
-exitStatus ccCmd (char **args)     // arg1 is targetMA, arg2 is minutes
+exitStatus BatteryTypeCmd (char **args)
 {
+    return BatteryTypeQ();
+
+}
+
+exitStatus ccCmd (char **args)      // arg1 = C-rate, arg2 =
+{                                   // ...minutes, arg3 = targetMA
     exitStatus exitRC;
     float shuntMA, busV;
     unsigned long startRecordsTime;
@@ -104,23 +29,24 @@ exitStatus ccCmd (char **args)     // arg1 is targetMA, arg2 is minutes
     while (*++args != NULL) {
         switch (++i) {
           case 1:
-            targetMA = constrain(atof(*args), 1.0, MAmpCeiling);
-            divisor = capacity / targetMA;
+            divisor = constrain(atof(*args), 1.0, 20.0);
+            targetMA = capacity / divisor;
             minutes = (57.0 * divisor) + 45.0;
             break;
           case 2:
             minutes = atof(*args);
             break;
+          case 3:
+            targetMA = constrain(atof(*args), 1.0, MAmpCeiling);
+            divisor = capacity / targetMA;
+            break;
         }
     }
     minutes = constrain(minutes, 1.0, 1440.0);
-    Printf("targetMA = %1.1f; minutes = %1.1f\n", targetMA, minutes);
+    Printf("C-rate = %1.1f; minutes = %1.1f; targetMA = %1.1f\n", divisor, minutes, targetMA);
 
     Monitor(NULL, &busV);
     Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<< testing initial high voltage >>>
-    exitRC = BatteryPresentQ(busV);
-    if (exitRC != 0)
-        return exitRC;
     SetVoltage(busV + 0.050);      // final val should be slightly under batt voltage  ?remove .01 bump?
     PowerOn();
     delay(10);
@@ -138,8 +64,6 @@ exitStatus ccCmd (char **args)     // arg1 is targetMA, arg2 is minutes
     EndChargeRecords(startRecordsTime, exitRC);
     PowerOff();
     SetVoltage(SetVLow);
-    if (! scriptrunning)
-        Printf("~");
     return exitRC;
 
 }
@@ -182,7 +106,7 @@ exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volt
     EndChargeRecords(startRecordsTime, rc);
     PowerOff();
     SetVoltage(SetVLow);
-    Printf("~\n");
+//     Printf("~\n");
     return Success;
 
 }
@@ -202,8 +126,8 @@ exitStatus DischargeCmd (char **args)
     rc = Discharge(thresh1, thresh2, reboundSecs);
     EndDischargeRecords();
 
-    if (! scriptrunning)
-        Printf("~");
+//    if (! scriptrunning)	  <<< Removed as part of new script processor testing >>>
+//        Printf("~");
     return rc;
 
 }
@@ -277,7 +201,7 @@ exitStatus LoffCmd(char **args)
 exitStatus LonCmd(char **args)
 {
     if (*++args != NULL) {
-        switch (**++args) {
+        switch (**args) {
           case 'h':
             HeavyOn();
             Printf("hi ");
@@ -381,7 +305,7 @@ exitStatus Report (char **args)
     float busV, shuntMA;
 
     Monitor(&shuntMA, &busV);
-    GenReport(-1, shuntMA, busV, millis());
+    GenReport(typeCC, shuntMA, busV, millis());
     return Success;
 
 }
@@ -398,61 +322,12 @@ exitStatus ReportHeats (char **args)
 }
 
 
-exitStatus ResistCmd (char **args)          // in mid-level
+exitStatus ResistCmd (char **args)
 {
     (void) args;
 
     ResistQ(1000);
     delay(5000);
-    return Success;
-
-}
-
-
-exitStatus ScriptCmd (char **args)
-{
-    exitStatus rc;
-
-    static char *chargeCmd[] = {"cc", NULL};
-//  static char *chargeCmd[] = {"cc","600", NULL};
-//  static char *chargeCmd[] = {"cc","400", NULL};   // Default
-//  static char *chargeCmd[] = {"cc","1750", NULL};  // D-cell
-
-    static char *dischCmd[] = {"d", "0.8", "1.0", "480", NULL};   // phase 1 lower limit, phase 2..
-                                                                  //..lower limit, rebound seconds
-    scriptrunning = true;                                         // std, 0.8-1.0-480
-//  ThermMonitor(10);
-
-    ResistQ(1000);
-    rc = DischargeCmd(dischCmd);
-    if (rc != Success) {
-       scriptrunning = false;
-       Printf("Premature exit from discharge\n");
-       return rc;
-    }
-    ResistQ(1000);
-    rc = ccCmd(chargeCmd);
-    if ((rc != DipDetected) && (rc != MaxTime) && (rc != ChargeTempThreshold)) {
-        scriptrunning = false;
-        Printf("Premature exit from constant charge\n");
-        return rc;
-    }
-    ResistQ(1000);
-    rc = DischargeCmd(dischCmd);
-    if (rc != Success) {
-        scriptrunning = false;
-        Printf("Premature exit from discharge\n");
-        return rc;
-    }
-    ResistQ(1000);
-    rc = ccCmd(chargeCmd);
-    if ((rc != DipDetected) && (rc != MaxTime) && (rc != ChargeTempThreshold)) {
-        scriptrunning = false;
-        Printf("Premature exit from constant charge\n");
-        return rc;
-    }
-    scriptrunning = false;
-    Printf("~");
     return Success;
 
 }
@@ -481,7 +356,7 @@ exitStatus SetCapacity (char **args)
     else
         capacity = mA;
 
-    Printf("Battery mAH: %d\n", capacity);
+    Printf("\rBattery mAH: %d\n", capacity);
     return Success;
 
 }
@@ -522,6 +397,17 @@ exitStatus VsetCmd (char **args)
 
     voltsetting = SetVoltage((*++args == NULL) ? SetVLow : atof(*args));
     Printf("Setting voltage to %1.3f\n", voltsetting);
+    return Success;
+
+}
+
+
+exitStatus VersionCmd (char **args)
+{
+    static char *date = __DATE__;
+    static char *time = __TIME__;
+
+    Printf("BatDevT (version: %s, %s)\n", date, time);
     return Success;
 
 }

@@ -26,39 +26,74 @@ exitStatus BailOutQ (void)
 
 }
 
+#if Locale == Mike
+  exitStatus BatteryPresentQ (void)
+  {
+      float busV;
+      exitStatus rc;
 
-exitStatus BatteryPresentQ (float busV)
+      AllLoadsOff();
+      LoadBus();         // Slight resistive load reduces
+      delay(500);        // ...phantom '219 bus voltage.
+
+      Monitor(NULL, &busV);
+      rc = (busV < 0.4) ? NoBattery : Success;
+
+      UnLoadBus();
+      return rc;
+
+  }
+
+#elif Locale == Hutch
+  exitStatus BatteryPresentQ (void)
+  {
+      exitStatus rc = Success;
+
+      AllLoadsOff();
+      Impress();
+      if (digitalRead(BatDetect) == HIGH) {    // BatDetect pin pulled high via internal 20K
+          rc = NoBattery;
+      }
+      RemoveImpress();
+      return rc;                        // if batdetect pin is low, batt is pulling pin down
+
+  }
+
+#else
+  #error "Unknown locale in MidLevel.ino"
+
+#endif
+
+
+exitStatus BatteryTypeQ (void)
 {
-//  return Success;
+    exitStatus rc = Success;           // means NiMH of correct polarity found
+    float shuntMA, busV;
 
-    exitStatus DetectRC = Success;             // means nimh of correct polarity is found
-    float shuntMA;
-
-    LoadBus();                                 // slight load removes ~1.3V stray from '219 on empty bus
-
-    if (busV > 1.44) {                         // 1.42 instead?
-        DetectRC = Alkaline;                   // 1.35 < alkaline < 1.60
+    AllLoadsOff();
+    LoadBus();                         // Slight resistive load removes
+    delay(750);                        // ...phantom '219 voltage from bus.
+    Monitor(NULL, &busV);
+    if (busV > 1.44) {
+        rc = Alkaline;                 // 1.44 < alkaline < 1.60
     }
-    if (busV > 1.60) {                         // 1.60 < lithium AA < 2.0
-        DetectRC = Lithium;
+    if (busV > 1.60) {                 // 1.60 < lithium AA < 2.0
+        rc = Lithium;
     }
-    if (busV > 2.0) {                          // > 2.0, wtf?bp
-        DetectRC = UnknownBattery;
+    if (busV > 2.0) {                  // > 2.0, wtf?
+        rc = UnknownBattery;
     }
+    UnLoadBus();
     if (busV < 0.1) {
-        LightOn();                              // a load which passes thru the '219 shunt
+        LightOn();                     // a load which passes thru the '219 shunt
         Monitor(&shuntMA, NULL);
-        if (shuntMA < 0) {                      // reverse current comes from reverse polarity battery
-            DetectRC = ReversedBattery;
+        if (shuntMA < 0) {             // reverse current comes from reverse polarity battery
+            rc = ReversedBattery;
         }
         LightOff();
     }
-    UnLoadBus();
-    if (digitalRead(BatDetect) == HIGH) {
-        DetectRC = NoBattery;
-    }
-    return DetectRC;                        // if batt detect pin is low, batt is present
-                                            // ..also, 0.0 < busV < 1.35, assume nimh
+    return rc;                        // if batt detect pin is low, batt is present
+                                      // ..also, 0.0 < busV < 1.35, assume nimh
 }
 
 
@@ -80,9 +115,8 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
     while (IsRunning(MaxChargeTimer)) {
         timeStamp = millis();
         Monitor(&shuntMA, &busV);
-        GetTemperatures(&batteryTemp, &ambientTemp);
-        bailRC = BailOutQ();
 
+        bailRC = BailOutQ();
         if (bailRC != 0)
             return bailRC;
         if (shuntMA > MAmpCeiling)

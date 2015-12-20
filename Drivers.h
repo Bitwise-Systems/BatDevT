@@ -41,9 +41,10 @@ typedef struct { float busScale; float busOffset; float shuntScale; float shuntO
 
 //    Miscellaneous:
 
-#define ShuntResistor_Ohms 0.1    // On-board shunt resistor: 0.1 Ohm, 1%, 2 Watt
+#define ShuntResistor_Ohms 0.1    // On-board shunt resistor: 0.1 Ohm, 1%, 1 (or 2?) Watt
 
 typedef enum {          // Function return codes used throughout the application:
+    SENTINEL = -1,      //     Used to terminate exitStatus lists for memberQ
     Success = 0,
     ParameterError,
     ConsoleInterrupt,

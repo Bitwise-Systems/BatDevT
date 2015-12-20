@@ -2,7 +2,7 @@
 //    Smoothing.h  -- Constants, structures, & buffers required for smoothing filter
 //
 
-#define KernelSize 11    // Currently, the coefficient array 'c' hardcodes this
+#define KernelSize 11
 
 struct kernelStruct {    // Stucture for managing convolution kernels:
     float *window;       //     pointer to window buffer,
