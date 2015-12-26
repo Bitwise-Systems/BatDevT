@@ -10,10 +10,9 @@
 //          Eliminate PotLevel in end record
 //
 
-void PrintChargeParams (float target, int minutes, boolean pulsed)
+void PrintChargeParams (float target, int minutes)
 {
-    Printf("AddParm[%%runNum->\"BattID=%s, Target=%1.1f, Minutes=%d, Pulsed=%s\"];\n",
-        battID, target, minutes, (pulsed) ? "True" : "False");
+    Printf("AddParm[%%runNum->\"BattID=%s, Target=%1.1f, Minutes=%d\"];\n", battID, target, minutes);
 }
 
 
