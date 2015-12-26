@@ -13,6 +13,8 @@
 //
 //    Version 4.3: Switch smoothing filter from Savitzky-Golay to Gaussian
 //
+//    Version 4.4: Support for loadable scripts
+//
 //
 
 #include <EEPROM.h>
@@ -38,7 +40,7 @@
 #define typeDetect     2     // Dip Detected; CTRecord format
 #define typeTherm      3     // Use CTRecord format
 #define typeRampUp     4     // Used in ConstantCurrent during ramp-up phase
-#define typePulse      5     // Taken during 'off' pulse while charging    CTRecord format
+#define typePulse      5     // Presently unused
 #define typeDischarge  9     // Use CTRecord format
 #define typeEnd       10     // Elapsed time, exitStatus
 #define typeProvEnd   11     // not written yet, use EndRecord format
@@ -60,7 +62,12 @@ typedef struct DispatchTable {
     exitStatus (*handler)(char **);       // Pointer to command handler
 };
 
+
 const struct DispatchTable commandTable[] = {
+    { "power",      ExternalPowerQ  },        // <<< EVALUATING >>>
+    { "comp",       CompileCmd      },        // <<< EVALUATING >>>
+    { "list",       ListScriptCmd   },        // <<< EVALUATING >>>
+    { "run",        RunCmd          },        // <<< EVALUATING >>>
     { "b",          SetID           },
     { "bc",         SetCapacity     },
     { "bp",         BatPresentCmd   },
@@ -73,17 +80,14 @@ const struct DispatchTable commandTable[] = {
     { "help",       PrintHelp       },
     { "iget",       iGetCmd         },
     { "loff",       LoffCmd         },
-    { "lon",        LonCmd          },  // Load on; args h, m, l, b [hi, med, lo, bus]
-//  { "jugs",       ReportJugs      },
+    { "lon",        LonCmd          },
     { "nudge",      NudgeCmd        },
     { "off",        PwrOffCmd       },
     { "on",         PwrOnCmd        },
     { "pgood",      PwrGoodCmd      },
     { "r",          ResistCmd       },
-//  { "rate",       ChargeRateCmd   },
     { "ram",        FreeRam         },
 //  { "s",          Sleep219        },
-    { "script",     ScriptCmd       },
     { "setpga",     PgaCmd          },
     { "tell",       Report          },
     { "thermo",     ThermLoop       },
@@ -115,7 +119,6 @@ void setup (void)
     SetPGA(8);
 
     VersionCmd(NULL);
-    FreeRam(NULL);      // Keep tabs on amount of free RAM.
     SetID(NULL);        // Print the default battery ID as a
                         // ...reminder to set the actual one.
 }
@@ -127,7 +130,8 @@ void loop (void)
     char **t;
     exitStatus rc;
 
-    Printf("> ");
+//  Printf("> ");
+    Printf("\x1B[1G\x1B[0K> ");    // cursor to column 1, and erase to end of line
     t = util.GetCommand();
     if (*t == NULL)
         return;
@@ -141,7 +145,7 @@ void loop (void)
         ReportExitStatus(rc);
 		Printf("\n");
     }
-    if (strcmp(commandTable[i].command, "script") == 0)     // <<< EVALUATING >>>
+    if (strcmp(commandTable[i].command, "run") == 0)
         Printf("~");
 
 }
