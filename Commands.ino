@@ -2,6 +2,27 @@
 //      Commands.ino  --  Handlers for interpreter commands
 //
 
+exitStatus ExternalPowerQ (char **args)    // <<< EVALUATING >>>
+{
+    float busV;
+    exitStatus rc;
+
+    SetVoltage(SetVLow);
+    PowerOn();
+    delay(20);
+    Monitor(NULL, &busV);
+    SetVoltage(busV + 0.2);
+    rc = (StatusQ() == 0) ? Success : IdealDiodeStatus;
+    PowerOff();
+    SetVoltage(SetVLow);
+
+    Printf("External power is %s\n", (rc == 0) ? "ON" : "OFF");
+
+    return rc;
+
+}
+
+
 exitStatus BatPresentCmd (char **args)
 {
     return BatteryPresentQ();
@@ -15,10 +36,18 @@ exitStatus BatteryTypeCmd (char **args)
 
 }
 
-exitStatus ccCmd (char **args)      // arg1 = C-rate, arg2 =
-{                                   // ...minutes, arg3 = targetMA
-    exitStatus exitRC;
-    float shuntMA, busV;
+
+//------------------------------------------------------------------------------
+//    ccCmd -- Constant current command handler
+//
+//    Usage: cc [C-rate [minutes [targetMA]]]
+//
+//------------------------------------------------------------------------------
+
+exitStatus ccCmd (char **args)
+{
+    float busV;
+    exitStatus rc;
     unsigned long startRecordsTime;
 
     float divisor = 4.0;                      // Default C-rate = C/4
@@ -46,92 +75,132 @@ exitStatus ccCmd (char **args)      // arg1 = C-rate, arg2 =
     Printf("C-rate = %1.1f; minutes = %1.1f; targetMA = %1.1f\n", divisor, minutes, targetMA);
 
     Monitor(NULL, &busV);
-    Printf("Voltage just before setvoltage: %1.3f\n", busV);     // <<< testing initial high voltage >>>
-    SetVoltage(busV + 0.050);      // final val should be slightly under batt voltage  ?remove .01 bump?
-    PowerOn();
-    delay(10);
-    Monitor(&shuntMA, &busV);                                 // <<< testing initial high voltage >>>
+    Printf("Voltage just before setvoltage: %1.3f\n", busV);  // <<< testing initial high voltage >>>
+    SetVoltage(busV + 0.050);                                 // Final value should be slightly
+    PowerOn();                                                // ...under battery voltage.
+    delay(20);
+    Monitor(NULL, &busV);                                     // <<< testing initial high voltage >>>
     Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<< testing initial high voltage >>>
 
-    if (StatusQ() == 1)  {       // if so, could be lack of external power
-        PowerOff();
-        Printf("No external power, exiting\n");
-        return IdealDiodeStatus;
-    }
-    PrintChargeParams(targetMA, minutes, false);      // False means no pulsing
+//  Formerly, a check for external power occurred here. This is now
+//  available as a standalone command, and can be incorporated into any script.
+
+    PrintChargeParams(targetMA, minutes);
     startRecordsTime = StartChargeRecords();
-    exitRC = ConstantCurrent(targetMA, minutes);
-    EndChargeRecords(startRecordsTime, exitRC);
+    rc = ConstantCurrent(targetMA, minutes);
+    EndChargeRecords(startRecordsTime, rc);
     PowerOff();
     SetVoltage(SetVLow);
-    return exitRC;
+
+    return rc;
 
 }
 
 
-exitStatus cvCmd (char **args)     // Calls ConstantVoltage. Arg1 is target volts,
-{                                  // ...arg2 is minutes, arg3: bail at or below this value
-    int minutes;
+//------------------------------------------------------------------------------
+//    cvCmd -- Constant voltage command handler
+//
+//    Usage: cv [targetV [minutes [floor]]]
+//
+//------------------------------------------------------------------------------
+
+exitStatus cvCmd (char **args)
+{
     exitStatus rc;
     unsigned long startRecordsTime;
-    float shuntMA, busV, targetV, mAmpFloor;
 
-    targetV =   (*++args == NULL) ? SetVLow   : constrain(atof(*args), SetVLow, SetVHigh);
-    minutes =   (*++args == NULL) ? 10        : constrain(atoi(*args), 1, 1440);
-    mAmpFloor = (*++args == NULL) ? 5.0       : constrain(atof(*args), 1, 4000);  // max safes shunt resistor
+    float targetV = SetVLow;        // defaults...
+    unsigned minutes = 10;
+    float mAmpFloor = 5.0;
 
-    Monitor(&shuntMA, &busV);
-    if (busV < 0.1) {
-        Printf("Don't see a battery; exiting\n");
-        return NoBattery;
+    int i = 0;
+    while (*++args != NULL) {
+        switch (++i) {
+          case 1:
+            targetV = constrain(atof(*args), SetVLow, SetVHigh);
+            break;
+          case 2:
+            minutes = constrain(atoi(*args), 1, 1440);
+            break;
+          case 3:
+            mAmpFloor = constrain(atof(*args), 1.0, MAmpCeiling);
+            break;
+        }
     }
-    if  (shuntMA < -80.0)  {
-        Printf("No external power; exiting");
-        return IdealDiodeStatus;
-    }
+//  Formerly, a 'battery present check' and an 'external power check' occurred here.
+//  These are now available as standalone commands, and can be incorporated into any script.
 
-    PrintChargeParams(targetV, minutes, false);
-    SetVoltage(SetVLow);        // Let ConstantVoltage ramp it up
+    PrintChargeParams(targetV, minutes);
+    SetVoltage(SetVLow);
     PowerOn();
+    delay(20);
     startRecordsTime = StartChargeRecords();
     do {
         rc = ConstantVoltage(targetV, minutes, mAmpFloor);
         if (rc != 0)
             ReportExitStatus(rc);
         delay(5000);
-        Monitor(NULL, &busV);
         targetV += 0.1;
     } while (targetV < 1.5);
 
     EndChargeRecords(startRecordsTime, rc);
     PowerOff();
     SetVoltage(SetVLow);
-//     Printf("~\n");
+
     return Success;
 
 }
 
 
+//------------------------------------------------------------------------------
+//    DischargeCmd -- Discharge command handler
+//
+//    Usage: d [threshold1 [threshold2 [reboundTime]]]
+//
+//------------------------------------------------------------------------------
+
 exitStatus DischargeCmd (char **args)
 {
-    exitStatus rc;
-    float thresh1, thresh2;
-    unsigned int reboundSecs;
+    void LoadByCapacity(void), LightOn(void);
+    exitStatus rc, discharge(float threshold, void (*loadFunction)());
 
-    thresh1 =     (*++args == NULL) ? 0.8 : constrain(atof(*args), 0.5, 1.4);
-    thresh2 =     (*++args == NULL) ? 1.0 : constrain(atof(*args), 0.5, 1.4);
-    reboundSecs = (*++args == NULL) ? 480 : constrain(atoi(*args), 1, 6000);
+    float thresh1 = 0.8;            // defaults...
+    float thresh2 = 1.0;
+    unsigned reboundSecs = 480;
 
+    int i = 0;
+    while (*++args != NULL) {
+        switch (++i) {
+          case 1:
+            thresh1 = constrain(atof(*args), 0.5, 1.4);
+            break;
+          case 2:
+            thresh2 = constrain(atof(*args), 0.5, 1.4);
+            break;
+          case 3:
+            reboundSecs = constrain(atoi(*args), 1, 6000);
+            break;
+        }
+    }
+
+    PowerOff();               // Ensure TLynx power isn't just running down the drain.
     PrintDischargeParams();
-    rc = Discharge(thresh1, thresh2, reboundSecs);
+    if ((rc = discharge(thresh1, LoadByCapacity)) != Success)
+        return rc;
+    if ((rc = rebound(reboundSecs)) != Success)
+        return rc;
+    if ((rc = discharge(thresh2, LightOn)) != Success)
+        return rc;
+    if ((rc = rebound(reboundSecs)) != Success)
+        return rc;
     EndDischargeRecords();
+    AllLoadsOff();
 
-//    if (! scriptrunning)	  <<< Removed as part of new script processor testing >>>
-//        Printf("~");
-    return rc;
+    return Success;
 
 }
 
+//------------------------------------------------------------------------------
 
 #define RAMSize 2048        // ATmega328P
 
@@ -166,7 +235,7 @@ exitStatus iGetCmd (char **args)
 }
 
 
-exitStatus LoffCmd(char **args)
+exitStatus LoffCmd (char **args)
 {
     if (*++args != NULL) {
         switch (**args) {
@@ -198,7 +267,7 @@ exitStatus LoffCmd(char **args)
 }
 
 
-exitStatus LonCmd(char **args)
+exitStatus LonCmd (char **args)
 {
     if (*++args != NULL) {
         switch (**args) {
