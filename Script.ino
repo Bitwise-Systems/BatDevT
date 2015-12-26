@@ -1,75 +1,92 @@
 //---------------------------------------------------------------------------------------
-//      Script.ino  --  Script interpreter & library
+//      Script.ino  --  Script compiler & interpreter
 //---------------------------------------------------------------------------------------
 
-//    Command line repertoire:
-
-char *defaultCharge[] = {"cc", NULL};
-char *topOffCharge[] = {"cc", "10", "20", NULL};        // rate = C/10 for 20 minutes
-char *discharge[] = {"d", "0.8", "1.0", "480", NULL};
-char *internalR[] = {"r", NULL};
-char *battPresent[] = {"bp", NULL};
+char *commandText = NULL;           // Command text buffer
+const int AllocSize = 200;          // Initial size for buffer allocation
+int bufsize = 0;                    // Actual buffer size after truncation
 
 
-//    Scripts:
+#define MaxCommandsPerScript 15     // Maximum script length (in lines)
+#define MaxTokensPerCommand 4       // Command name plus three arguments
 
-char **standard[] = {
-    battPresent,
-    internalR,
-    discharge,
-    internalR,
-    defaultCharge,
-    internalR,
-    discharge,
-    NULL
-};
-
-char **topOff[] = {     // Test efficacy of including a "top-off" charge:
-    battPresent,
-    internalR,
-    discharge,          //   discharge to a known starting point,
-    internalR,
-    defaultCharge,      //   charge without topping off,
-    internalR,
-    discharge,          //   discharge for jugs, & to get back to known start;
-    internalR,
-    defaultCharge,      //   charge...
-    topOffCharge,       //   ...and then top off,
-    internalR,
-    discharge,          //   discharge for jugs.
-    NULL
-};
+static char *tokptr[MaxCommandsPerScript + 1][MaxTokensPerCommand + 1];
 
 
-//    Library:
-
-char ***scripts[] = {
-    standard,           // script 0
-    topOff              // script 1
-};
-
-
-//---------------------------------------------------------------------------------------
-
-
-#define MaxIndex (((sizeof scripts) / (sizeof scripts[0])) - 1)
-
-exitStatus ScriptCmd (char **args)      // Script command processor
+exitStatus CompileCmd (char **args)    // Compile a script
 {
+    int i, j;
+    char **t, *bufptr;
+    int bytesToCopy, bytesAvail = AllocSize;
+
+    if (commandText != NULL)
+        free(commandText);
+
+    bufptr = commandText = (char *) malloc(AllocSize);
+    if (commandText == NULL) {
+        abortCompile("can't allocate memory");
+        return ParameterError;
+    }
+    for (i = 0; *(t = util.GetCommand()) != NULL; i++) {
+        j = 0;
+        do {
+            if (i >= MaxCommandsPerScript) {
+                abortCompile("too many commands");
+                return ParameterError;
+            }
+            if (j >= MaxTokensPerCommand) {
+                abortCompile("too many tokens");
+                return ParameterError;
+            }
+            if ((bytesToCopy = strlen(*t) + 1) > bytesAvail) {
+                abortCompile("text buffer overflow");
+                return ParameterError;
+            }
+            tokptr[i][j++] = bufptr;
+            strncpy(bufptr, *t, bytesToCopy);
+            bufptr += bytesToCopy;
+            bytesAvail -= bytesToCopy;
+
+        } while (*++t != NULL);
+        tokptr[i][j] = NULL;
+    }
+    tokptr[i][0] = NULL;
+    bufsize = bufptr - commandText;
+    commandText = (char *) realloc(commandText, bufsize);
+
+    return Success;
+
+}
+
+
+static void abortCompile (char *errorMessage)    // Recover from compiler errors
+{
+    Printf("Script compiler error: %s\n", errorMessage);
+    if (commandText != NULL) {
+        free(commandText);
+        commandText = NULL;
+    }
+    bufsize = 0;
+    memset(tokptr, 0, sizeof tokptr);
+
+}
+
+
+exitStatus RunCmd (char **args)      // Script command processor
+{
+    int i, j;
     exitStatus rc;
     static exitStatus goodRC[] = {Success, DipDetected, MaxTime, ChargeTempThreshold, SENTINEL};
 
-    int i, j, k = (*++args == NULL) ? 0 : constrain(atoi(*args), 0, MaxIndex);
-
-    for (j = 0; scripts[k][j] != NULL; j++) {
+    for (j = 0; tokptr[j][0] != NULL; j++) {
         for (i = 0; commandTable[i].command != NULL; i++)
-            if (strcmp(commandTable[i].command, *scripts[k][j]) == 0)
+            if (strcmp(commandTable[i].command, *tokptr[j]) == 0)
                 break;
 
-        rc = (*commandTable[i].handler)(scripts[k][j]);
+        rc = (*commandTable[i].handler)(tokptr[j]);
 
         if (! memberQ(rc, goodRC)) {
-            Printf("Untoward return code from '%s' (rc = %d), ", *scripts[k][j], rc);
+            Printf("Untoward return code from '%s' (rc = %d), ", *tokptr[j], rc);
             return rc;
         }
     }
@@ -85,5 +102,18 @@ static boolean memberQ (exitStatus element, exitStatus *set)    // Set membershi
             return true;
 
     return false;
+
+}
+
+
+exitStatus ListScriptCmd (char **args)    // List script contents
+{
+    for (int i = 0; tokptr[i][0] != NULL; i++) {
+        Printf(":   ");
+        for (int j = 0; tokptr[i][j] != NULL; j++)
+            Printf("%s ", tokptr[i][j]);
+        Printf("\n");
+    }
+    return Success;
 
 }
