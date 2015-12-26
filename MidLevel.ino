@@ -5,6 +5,10 @@
 //=======================================================================================
 
 
+//---------------------------------------------------------------------------------------
+//    BailOutQ  --
+//---------------------------------------------------------------------------------------
+
 exitStatus BailOutQ (void)
 {
     float busV, batteryTemp, ambientTemp;
@@ -17,7 +21,7 @@ exitStatus BailOutQ (void)
     if (batteryTemp > MaxBatTemp)   bailRC = PanicTemp;
     if (busV > MaxBatVolt)          bailRC = PanicVoltage;
     if (!PowerGoodQ())              bailRC = PBad;
-    if (StatusQ() == 1)             bailRC = IdealDiodeStatus;    // trips if used during off pulse
+    if (StatusQ() == 1)             bailRC = IdealDiodeStatus;
     if (Serial.available() > 0)     bailRC = ConsoleInterrupt;
     if (bailRC != Success)
         Printf("(* Bail! %1.3f V, %1.2f deg *)\n", busV, batteryTemp);
@@ -25,6 +29,11 @@ exitStatus BailOutQ (void)
     return bailRC;
 
 }
+
+
+//---------------------------------------------------------------------------------------
+//    BatteryPresentQ  --
+//---------------------------------------------------------------------------------------
 
 #if Locale == Mike
   exitStatus BatteryPresentQ (void)
@@ -64,6 +73,10 @@ exitStatus BailOutQ (void)
 
 #endif
 
+
+//---------------------------------------------------------------------------------------
+//    BatteryTypeQ  --
+//---------------------------------------------------------------------------------------
 
 exitStatus BatteryTypeQ (void)
 {
@@ -167,39 +180,21 @@ exitStatus ThermMonitor (int minutes)
 
 
 //---------------------------------------------------------------------------------------
-//    Discharge -- Discharge battery
+//    rebound  --  Twiddle thumbs waiting for battery to rebound from discharging
 //---------------------------------------------------------------------------------------
 
-exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
+exitStatus rebound (unsigned reboundTime)
 {
     float shuntMA, busV;
-    float batteryTemp, ambientTemp;
 
-    PowerOff();     // Ensure TLynx power isn't just running down the drain.
-
-    LoadByCapacity();         // Phase-1 discharge
-    Monitor(&shuntMA, &busV);
-    while (busV > thresh1) {
-        if (Serial.available() > 0) {
-            AllLoadsOff();
-            GenReport(typeDischarge, shuntMA, busV, millis());
-            return ConsoleInterrupt;
-        }
-        if (HasExpired(ReportTimer)) {
-            GenReport(typeDischarge, shuntMA, busV, millis());
-            GetTemperatures(&batteryTemp, &ambientTemp);
-            if (batteryTemp - ambientTemp > 1.0) {
-                GenReport(typeTherm, shuntMA, busV, millis());
-            }
-        }
-        Monitor(&shuntMA, &busV);
-    }
-
-    AllLoadsOff();      // First rebound
+    AllLoadsOff();
+    ResyncTimer(ReportTimer);
     StartTimer(ReboundTimer, reboundTime);
+
     while (IsRunning(ReboundTimer)) {
         if (Serial.available() > 0) {
-            GenReport(typeDischarge, shuntMA, busV, millis());
+            while (Serial.read() > -1)
+                ;
             return ConsoleInterrupt;
         }
         if (HasExpired(ReportTimer)) {
@@ -207,34 +202,36 @@ exitStatus Discharge (float thresh1, float thresh2, unsigned reboundTime)
             GenReport(typeDischarge, shuntMA, busV, millis());
         }
     }
+    return Success;
 
-    LightOn();          // Phase-2 discharge
+}
+
+
+//---------------------------------------------------------------------------------------
+//    discharge  --  Discharge down to a given voltage through a specified load
+//---------------------------------------------------------------------------------------
+
+exitStatus discharge (float threshold, void (*loadFunction)())
+{
+    float shuntMA, busV;
+
+    (*loadFunction)();
+    ResyncTimer(ReportTimer);
+
     Monitor(&shuntMA, &busV);
-    while (busV > thresh2) {
+    while (busV > threshold) {
         if (Serial.available() > 0) {
+            while (Serial.read() > -1)
+                ;
             AllLoadsOff();
-            GenReport(typeDischarge, shuntMA, busV, millis());
-            return ConsoleInterrupt;
-        }
-        if (HasExpired(ReportTimer))
-            GenReport(typeDischarge, shuntMA, busV, millis());
-        Monitor(&shuntMA, &busV);
-    }
-
-    AllLoadsOff();      // Second rebound
-    StartTimer(ReboundTimer, reboundTime);
-    while (IsRunning(ReboundTimer)) {
-        if (Serial.available() > 0) {
-            GenReport(typeDischarge, shuntMA, busV, millis());
             return ConsoleInterrupt;
         }
         if (HasExpired(ReportTimer)) {
-            Monitor(&shuntMA, &busV);
             GenReport(typeDischarge, shuntMA, busV, millis());
         }
+        Monitor(&shuntMA, &busV);
     }
-
-    GenReport(typeDischarge, shuntMA, busV, millis());
+    AllLoadsOff();
     return Success;
 
 }
@@ -266,28 +263,29 @@ float ResistQ (unsigned delayMS)
     ohms = abs((1000.0 * (bus2ndV - bus1stV)) / denom);
     Printf("%1.4f ohms internal resistance\n", ohms);
     LightOff(); delay(10);
+    return ohms;
 }
 
 
 //---------------------------------------------------------------------------------------
 //    CoolDown  --
 //---------------------------------------------------------------------------------------
-
-exitStatus CoolDown (unsigned int durationM)
-{
-    float shuntMA, busV;
-
-    ResyncTimer(ReportTimer);
-    StartTimer(MaxChargeTimer, (durationM * 60.0));
-
-    while (IsRunning(MaxChargeTimer)) {
-        if (Serial.available() > 0)
-            return ConsoleInterrupt;
-
-        if (HasExpired(ReportTimer)) {
-            Monitor(&shuntMA, &busV);
-            GenReport(typeCC, shuntMA, busV, millis());
-        }
-    }
-    return Success;
-}
+//
+// exitStatus CoolDown (unsigned int durationM)
+// {
+//     float shuntMA, busV;
+//
+//     ResyncTimer(ReportTimer);
+//     StartTimer(MaxChargeTimer, (durationM * 60.0));
+//
+//     while (IsRunning(MaxChargeTimer)) {
+//         if (Serial.available() > 0)
+//             return ConsoleInterrupt;
+//
+//         if (HasExpired(ReportTimer)) {
+//             Monitor(&shuntMA, &busV);
+//             GenReport(typeCC, shuntMA, busV, millis());
+//         }
+//     }
+//     return Success;
+// }
