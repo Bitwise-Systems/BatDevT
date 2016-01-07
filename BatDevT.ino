@@ -122,6 +122,9 @@ void setup (void)
     VersionCmd(NULL);
     SetID(NULL);        // Print the default battery ID as a
                         // ...reminder to set the actual one.
+#if Locale == Hutch
+    ExternalPowerQ(NULL);
+#endif
 }
 
 
