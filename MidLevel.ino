@@ -60,7 +60,7 @@ exitStatus BailOutQ (void)
 
       AllLoadsOff();
       Impress();
-      if (digitalRead(BatDetect) == HIGH) {    // BatDetect pin pulled high via internal 20K
+      if (digitalReadFast(BatDetect) == HIGH) {    // BatDetect pulled high via internal 20K
           rc = NoBattery;
       }
       RemoveImpress();
