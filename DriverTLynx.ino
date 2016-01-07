@@ -8,7 +8,6 @@
 //
 //---------------------------------------------------------------------------------------
 
-#include <FastDigital.h>
 
 void InitTLynx (void)
 {
@@ -25,14 +24,14 @@ void InitPot (void)
 {
     pinMode(PotDirection, OUTPUT);
     pinMode(PotToggle, OUTPUT);
-    digitalWrite(PotDirection, HIGH);    // Instruct counter to increment
-    digitalWrite(PotToggle, HIGH);
+    digitalWriteFast(PotDirection, HIGH);  // Instruct counter to increment
+    digitalWriteFast(PotToggle, HIGH);
 
-    for (int n = 0; n < 1024; n++) {     // Move wiper to 'H' end of the ladder
-       digitalWrite(PotToggle, LOW);     // ...giving maximum resistance and
-       digitalWrite(PotToggle, HIGH);    // ...thereby, minimum voltage.
+    for (int n = 0; n < 1024; n++) {       // Move wiper to 'H' end of the ladder
+       digitalWriteFast(PotToggle, LOW);   // ...giving maximum resistance and
+       digitalWriteFast(PotToggle, HIGH);  // ...thereby, minimum voltage.
     }
-    potLevel = 1023;                     // Reflect situation in shadow variable
+    potLevel = 1023;                       // Reflect situation in shadow variable
 
 }
 
@@ -96,13 +95,13 @@ static int MapVoltageToLevel (float v)
 
 void PowerOn (void)
 {
-     digitalWrite(PowerON, HIGH);     // MOSFET driver inverts for a negative logic TLynx
+     digitalWriteFast(PowerON, HIGH);     // MOSFET driver inverts for a negative logic TLynx
 }
 
 
 void PowerOff (void)
 {
-     digitalWrite(PowerON, LOW);
+     digitalWriteFast(PowerON, LOW);
 }
 
 
