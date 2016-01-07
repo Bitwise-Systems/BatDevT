@@ -42,8 +42,9 @@ void EndChargeRecords (unsigned long startingTime, exitStatus rc)
     Printf("{%d, \"%lu mins %lu secs elapsed\", \"Pot: %d\", ",
             typeEnd, qr.quot, qr.rem, GetPotLevel());
 
+    Printf("\"");
     ReportExitStatus(rc);
-    Printf("}}];\n");
+    Printf("\"}}];\n");
 
 }
 
@@ -66,9 +67,7 @@ void GenReport (int recordType, float shuntMA, float busV, unsigned long millise
 
 void ReportExitStatus (exitStatus rc)
 {
-    Printf("\"");
     PrintEEPROMstring(rc);
-    Printf("\"");
 
 }
 
