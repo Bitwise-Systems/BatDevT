@@ -24,7 +24,7 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM)
         if (rc = BailOutQ())
             return rc;
 
-        if (rc = (exitStatus) FullyChargedQ())
+        if (rc = (exitStatus) FullyChargedQ())        // Reporting happens here
             return rc;
 
         Monitor(&shuntMA, NULL);
