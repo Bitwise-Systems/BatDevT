@@ -57,7 +57,7 @@ exitStatus ccCmd (char **args)
     Monitor(NULL, &busV);
     Printf("Voltage just before setvoltage: %1.3f\n", busV);  // <<< testing initial high voltage >>>
     SetVoltage(busV + 0.050);                                 // Final value should be slightly
-    PowerOn();                                                // ...under battery voltage.
+    PowerOn();                                                // ...over battery voltage.
     delay(20);
     Monitor(NULL, &busV);                                     // <<< testing initial high voltage >>>
     Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<< testing initial high voltage >>>
@@ -196,7 +196,8 @@ exitStatus ExternalPowerQ (char **args)
     PowerOff();
     SetVoltage(SetVLow);
 
-    Printf("External power is %s: ", (rc == 0) ? "ON" : "OFF");
+    if (rc != Success)
+        Printf("\nNo external power\n\n");
 
     return rc;
 
@@ -357,12 +358,15 @@ exitStatus ReportHeats (char **args)
 
 }
 
+#define ChargeIt 0
+#define DischargeIt 1
 
 exitStatus ResistCmd (char **args)
 {
     (void) args;
 
-    ResistQ(1000);
+    ResistQ(ChargeIt, 1000);
+    ResistQ(DischargeIt, 1000);
     delay(5000);
     return Success;
 
