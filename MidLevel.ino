@@ -241,29 +241,38 @@ exitStatus discharge (float threshold, void (*loadFunction)())
 //    ResistQ  --
 //---------------------------------------------------------------------------------------
 
-float ResistQ (unsigned delayMS)
+float ResistQ (boolean resisttype, unsigned delayMS)
 {
     float shunt1stMA, bus1stV, ohms;
     float shunt2ndMA, bus2ndV, denom;
 
-    Monitor(NULL, &bus1stV);
-    SetVoltage(bus1stV + 0.100);
-    PowerOn();  delay(delayMS);
+    if (resisttype == ChargeIt) {
+        Monitor(NULL, &bus1stV);
+        SetVoltage(bus1stV + 0.100);
+        PowerOn();
+    }
+    else {
+        LightOn();
+    }
+    delay(delayMS);
     Monitor(&shunt1stMA, &bus1stV);
-    PowerOff();  delay(delayMS);
+    if (resisttype == ChargeIt) {
+        PowerOff();
+        Printf("charge ");
+    }
+    else {
+        LightOff();
+        Printf("discharge ");
+    }
+    delay(delayMS);
     Monitor(&shunt2ndMA, &bus2ndV);
     denom = (shunt1stMA - shunt2ndMA);
     if (denom == 0.0) denom = 0.001;
     ohms = abs((1000.0 * (bus2ndV - bus1stV)) / denom);
-    Printf("%1.4f ohms charge resistance\n", ohms);
-    LightOn(); delay(delayMS);
-    Monitor(&shunt1stMA, &bus1stV);
-    denom = (shunt2ndMA - shunt1stMA);
-    if (denom == 0.0) denom = 0.001;
-    ohms = abs((1000.0 * (bus2ndV - bus1stV)) / denom);
-    Printf("%1.4f ohms internal resistance\n", ohms);
-    LightOff(); delay(10);
+    Printf("resistance: %1.4f ohms\n", ohms);
+
     return ohms;
+
 }
 
 
