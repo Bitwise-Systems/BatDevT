@@ -15,37 +15,37 @@ void InitLoads (void)
 
 void HeavyOn (void)
 {
-    digitalWrite(HeavyLoadGate, HIGH);
+    digitalWriteFast(HeavyLoadGate, HIGH);
 }
 
 
 void HeavyOff (void)
 {
-    digitalWrite(HeavyLoadGate, LOW);
+    digitalWriteFast(HeavyLoadGate, LOW);
 }
 
 
 void MediumOn (void)
 {
-    digitalWrite(MediumLoadGate, HIGH);
+    digitalWriteFast(MediumLoadGate, HIGH);
 }
 
 
 void MediumOff (void)
 {
-    digitalWrite(MediumLoadGate, LOW);
+    digitalWriteFast(MediumLoadGate, LOW);
 }
 
 
 void LightOn (void)
 {
-    digitalWrite(LightLoadGate, HIGH);
+    digitalWriteFast(LightLoadGate, HIGH);
 }
 
 
 void LightOff (void)
 {
-    digitalWrite(LightLoadGate, LOW);
+    digitalWriteFast(LightLoadGate, LOW);
 }
 
 
@@ -57,7 +57,7 @@ void LightOff (void)
 void LoadBus (void)
 {
     pinMode(BusLoad, OUTPUT);
-    digitalWrite(BusLoad, LOW);     // Ground bus through a 4.3K resistor
+    digitalWriteFast(BusLoad, LOW);     // Ground bus through a 4.3K resistor
 }
 
 
@@ -88,6 +88,25 @@ void AllLoadsOff (void)
     LightOff();
     UnLoadBus();
     RemoveImpress();
+
+}
+
+
+void UnknownLoad (void)    // Used by 'LoadCmd' in handling unknown argument
+{
+    Printf("Unknown load\n");
+}
+
+
+void LoadStatus (void)    // Portability caution: 'BusLoad' port/pin hard-coded below
+{
+    Printf("Load    Heavy  Medium  Light  Bus\n");
+    Printf("Status:  %s    %s     %s   %s\n",
+        digitalReadFast(HeavyLoadGate) ? "ON " : "OFF",
+        digitalReadFast(MediumLoadGate) ? "ON " : "OFF",
+        digitalReadFast(LightLoadGate) ? "ON " : "OFF",
+        bitRead(DDRD, 7) ? "ON " : "OFF"
+    );
 
 }
 
