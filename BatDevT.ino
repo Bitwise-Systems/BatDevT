@@ -20,6 +20,7 @@
 #include <EEPROM.h>
 #include <DallasTemperature.h>
 #include <Utility.h>
+#include <FastDigital.h>
 #include <BatDevLocale.h>
 #include "Drivers.h"
 #include "DriverTimer.h"
@@ -54,39 +55,39 @@
 
 //---------------- Globals ----------------
 
-char battID[20] = "<undefined>";
+char battID[20] = "<undefined>";          // See '~/MSR/BatDevInventory.py'
 int capacity = 2400;                      // Battery capacity in mAh
 
-typedef struct DispatchTable {
+struct DispatchTable {
     const char *command;                  // Command name
     exitStatus (*handler)(char **);       // Pointer to command handler
 };
 
 
 const struct DispatchTable commandTable[] = {
-    { "power",      ExternalPowerQ  },        // <<< EVALUATING >>>
-    { "comp",       CompileCmd      },        // <<< EVALUATING >>>
-    { "list",       ListScriptCmd   },        // <<< EVALUATING >>>
-    { "run",        RunCmd          },        // <<< EVALUATING >>>
     { "b",          SetID           },
     { "bc",         SetCapacity     },
     { "bp",         BatPresentCmd   },
     { "bt",         BatteryTypeCmd  },
     { "cc",         ccCmd           },
+    { "comp",       CompileCmd      },
     { "cv",         cvCmd           },
     { "d",          DischargeCmd    },
     { "getpga",     GetPgaCmd       },
     { "heat",       ReportHeats     },
     { "help",       PrintHelp       },
     { "iget",       iGetCmd         },
-    { "loff",       LoffCmd         },
-    { "lon",        LonCmd          },
+    { "list",       ListCmd         },
+    { "load",       LoadCmd         },        // <<< EVALUATING >>>
+    { "memq",       MemQCmd         },        // <<< TESTING >>>
     { "nudge",      NudgeCmd        },
     { "off",        PwrOffCmd       },
     { "on",         PwrOnCmd        },
     { "pgood",      PwrGoodCmd      },
+    { "power",      ExternalPowerQ  },
     { "r",          ResistCmd       },
     { "ram",        FreeRam         },
+    { "run",        RunCmd          },
 //  { "s",          Sleep219        },
     { "setpga",     PgaCmd          },
     { "tell",       Report          },
@@ -105,12 +106,12 @@ void setup (void)
 
     InitTLynx();
     if (Init219() == false) {
-        Printf("INA219 not found!");
+        Printf("INA219 not found!\n");
         while (1)
             ;
     }
     if (InitThermo() != 0) {
-        Printf("Thermometers not found!");
+        Printf("Thermometers not found!\n");
         while (1)
             ;
     }
