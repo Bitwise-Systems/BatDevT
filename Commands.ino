@@ -2,26 +2,6 @@
 //      Commands.ino  --  Handlers for interpreter commands
 //
 
-exitStatus ExternalPowerQ (char **args)    // <<< EVALUATING >>>
-{
-    float busV;
-    exitStatus rc;
-
-    SetVoltage(SetVLow);
-    PowerOn();
-    delay(20);
-    Monitor(NULL, &busV);
-    SetVoltage(busV + 0.2);
-    rc = (StatusQ() == 0) ? Success : IdealDiodeStatus;
-    PowerOff();
-    SetVoltage(SetVLow);
-
-    Printf("External power is %s\n", (rc == 0) ? "ON" : "OFF");
-
-    return rc;
-
-}
-
 
 exitStatus BatPresentCmd (char **args)
 {
@@ -202,18 +182,36 @@ exitStatus DischargeCmd (char **args)
 
 //------------------------------------------------------------------------------
 
-#define RAMSize 2048        // ATmega328P
+exitStatus ExternalPowerQ (char **args)
+{
+    float busV;
+    exitStatus rc;
+
+    SetVoltage(SetVLow);
+    PowerOn();
+    delay(20);
+    Monitor(NULL, &busV);
+    SetVoltage(busV + 0.2);
+    rc = (StatusQ() == 0) ? Success : IdealDiodeStatus;
+    PowerOff();
+    SetVoltage(SetVLow);
+
+    Printf("External power is %s: ", (rc == 0) ? "ON" : "OFF");
+
+    return rc;
+
+}
+
 
 exitStatus FreeRam (char **args)
 {
-    byte *heap = NULL;
-    int n = RAMSize;
+    int v;
+    extern int __heap_start, *__brkval;
 
-    while (n > 0 && (heap = (byte *) malloc(n)) == NULL)
-        n--;
-    free(heap);
-    Printf("Avail SRAM: %d bytes\n", n);
+    v = (int) &v - ((__brkval == 0) ? (int) &__heap_start : (int) __brkval);
+    Printf("Free SRAM: %d bytes\n", v);
     return Success;
+
 }
 
 
@@ -235,67 +233,36 @@ exitStatus iGetCmd (char **args)
 }
 
 
-exitStatus LoffCmd (char **args)
+exitStatus LoadCmd (char **args)
 {
-    if (*++args != NULL) {
-        switch (**args) {
-          case 'h':
-            HeavyOff();
-            Printf("hi ");
-            break;
-          case 'm':
-            MediumOff();
-            Printf("med ");
-            break;
-          case 'l':
-            LightOff();
-            Printf("low ");
-            break;
-          case 'b':
-            UnLoadBus();
-            Printf("bus");
-            break;
-          default:
-            Printf("!arg No ");
-            break;
-        }
-        Printf("load off\n");
-    }
-    else
-        Printf("no arg, no action\n");
-    return Success;
-}
+    int i;
+    static struct {
+        const char *command;
+        void (*handler)(void);
 
+    } loadTable[] = {
+        { "+h",    HeavyOn   },
+        { "-h",    HeavyOff  },
+        { "+m",    MediumOn  },
+        { "-m",    MediumOff },
+        { "+l",    LightOn   },
+        { "-l",    LightOff  },
+        { "+b",    LoadBus   },
+        { "-b",    UnLoadBus },
+        { "-all",  AllLoadsOff },
+        { NULL,    UnknownLoad }
+    };
 
-exitStatus LonCmd (char **args)
-{
-    if (*++args != NULL) {
-        switch (**args) {
-          case 'h':
-            HeavyOn();
-            Printf("hi ");
-            break;
-          case 'm':
-            MediumOn();
-            Printf("med ");
-            break;
-          case 'l':
-            LightOn();
-            Printf("low ");
-            break;
-          case 'b':
-            LoadBus();
-            Printf("bus");
-            break;
-          default:
-            Printf("!arg No ");
-            break;
-        }
-        Printf("load on\n");
+    while (*++args != NULL) {
+        for (i = 0; loadTable[i].command != NULL; i++)
+            if (strcmp(loadTable[i].command, *args) == 0)
+                break;
+
+        (*loadTable[i].handler)();
     }
-    else
-        Printf("no arg, no action\n");
+    LoadStatus();
     return Success;
+
 }
 
 
@@ -320,7 +287,7 @@ exitStatus PgaCmd (char **args)
             SetPGA(divisor);
             break;
           default:
-            Printf("Invalid divisor.  Need 1, 2, 4, or 8.");
+            Printf("Invalid divisor.  Need 1, 2, 4, or 8.\n");
             break;
         }
     }
@@ -329,8 +296,8 @@ exitStatus PgaCmd (char **args)
 }
 
 
-exitStatus PrintHelp (char **args)
-{
+exitStatus PrintHelp (char **args)      // Provided in BatDev.py, which should
+{                                       // ...intercept the command
     (void) args;
 
     Printf("Help unavailable\n");
