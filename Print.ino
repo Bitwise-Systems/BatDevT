@@ -11,9 +11,10 @@
 //
 
 
-void PrintChargeParams (float target, int minutes)
+void PrintChargeParams (float cRate, float target, int minutes)
 {
-    Printf("AddParm[%%runNum->\"BattID=%s, Target=%1.1f, Minutes=%d\"];\n", battID, target, minutes);
+    Printf("AddParm[%%runNum->\"BattID=%s, CRate=%1.1f, Target=%1.1f, Minutes=%d\"];\n",
+        battID, cRate, target, minutes);
 }
 
 
