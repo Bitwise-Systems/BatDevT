@@ -203,18 +203,16 @@ exitStatus ExternalPowerQ (char **args)
 
 }
 
-
-exitStatus FreeRam (char **args)
-{
-    int v;
-    extern int __heap_start, *__brkval;
-
-    v = (int) &v - ((__brkval == 0) ? (int) &__heap_start : (int) __brkval);
-    Printf("Free SRAM: %d bytes\n", v);
-    return Success;
-
-}
-
+// exitStatus FreeRam (char **args)
+// {
+//     int v;
+//     extern int __heap_start, *__brkval;
+//
+//     v = (int) &v - ((__brkval == 0) ? (int) &__heap_start : (int) __brkval);
+//     Printf("Free SRAM: %d bytes\n", v);
+//     return Success;
+//
+// }
 
 exitStatus GetPgaCmd (char **args)
 {
@@ -311,7 +309,7 @@ exitStatus PwrGoodCmd (char **args)
 {
     (void) args;
 
-    Printf("PGood is %s\n", (PowerGoodQ() == 1) ? "okay" : "not okay");
+    Printf("PGood is %sokay\n", (PowerGoodQ() == 1) ? "" : "not ");
     return Success;
 }
 
