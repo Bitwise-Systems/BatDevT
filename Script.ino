@@ -158,7 +158,7 @@ static void handleOverflow (void)
 //      Dynamic memory manager, used exclusively by 'append' & 'saveString'
 //---------------------------------------------------------------------------------------
 
-#define PoolSize 600
+#define PoolSize 300
 
 static char memoryPool[PoolSize];       // fixed size memory pool
 static char *allocp = memoryPool;       // next free position
