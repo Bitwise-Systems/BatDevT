@@ -65,7 +65,7 @@ exitStatus ccCmd (char **args)
 //  Formerly, a check for external power occurred here. This is now
 //  available as a standalone command, and can be incorporated into any script.
 
-    PrintChargeParams(targetMA, minutes);
+    PrintChargeParams(divisor, targetMA, minutes);
     startRecordsTime = StartChargeRecords();
     rc = ConstantCurrent(targetMA, minutes);
     EndChargeRecords(startRecordsTime, rc);
@@ -91,7 +91,7 @@ exitStatus cvCmd (char **args)
 
     float targetV = SetVLow;        // defaults...
     unsigned minutes = 10;
-    float mAmpFloor = 5.0;
+    float mAmpFloor = 2.0;
 
     int i = 0;
     while (*++args != NULL) {
@@ -110,7 +110,7 @@ exitStatus cvCmd (char **args)
 //  Formerly, a 'battery present check' and an 'external power check' occurred here.
 //  These are now available as standalone commands, and can be incorporated into any script.
 
-    PrintChargeParams(targetV, minutes);
+    PrintChargeParams(0.0, targetV, minutes);
     SetVoltage(SetVLow);
     PowerOn();
     delay(20);
@@ -121,7 +121,7 @@ exitStatus cvCmd (char **args)
             ReportExitStatus(rc);
         delay(5000);
         targetV += 0.1;
-    } while (targetV < 1.5);
+    } while (targetV < 1.6);
 
     EndChargeRecords(startRecordsTime, rc);
     PowerOff();
