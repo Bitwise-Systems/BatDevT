@@ -10,6 +10,7 @@
 //          Eliminate PotLevel in end record
 //
 
+
 void PrintChargeParams (float target, int minutes)
 {
     Printf("AddParm[%%runNum->\"BattID=%s, Target=%1.1f, Minutes=%d\"];\n", battID, target, minutes);
@@ -60,7 +61,9 @@ void GenReport (int recordType, float shuntMA, float busV, unsigned long millise
     float batteryTemp, ambientTemp;
 
     GetTemperatures(&batteryTemp, &ambientTemp);
-    Printf("{%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu},\n", recordType, shuntMA, busV, batteryTemp, ambientTemp, millisecs);
+
+    Printf("{%d,%1.3f,%1.4f,%1.4f,%1.4f,%lu},\n",
+        recordType, shuntMA, busV, batteryTemp, ambientTemp, millisecs);
 
 }
 
