@@ -15,6 +15,7 @@
 //
 //    Version 4.4: Support for loadable scripts
 //
+//    Version 4.5: SRAM watermarking support
 //
 
 #include <EEPROM.h>
@@ -65,6 +66,7 @@ struct DispatchTable {
 
 
 const struct DispatchTable commandTable[] = {
+    { "dump",       DumpRAM         },        // <<< TESTING >>
     { "b",          SetID           },
     { "bc",         SetCapacity     },
     { "bp",         BatPresentCmd   },
@@ -78,7 +80,7 @@ const struct DispatchTable commandTable[] = {
     { "help",       PrintHelp       },
     { "iget",       iGetCmd         },
     { "list",       ListCmd         },
-    { "load",       LoadCmd         },        // <<< EVALUATING >>>
+    { "load",       LoadCmd         },
     { "memq",       MemQCmd         },        // <<< TESTING >>>
     { "nudge",      NudgeCmd        },
     { "off",        PwrOffCmd       },
@@ -86,7 +88,7 @@ const struct DispatchTable commandTable[] = {
     { "pgood",      PwrGoodCmd      },
     { "power",      ExternalPowerQ  },
     { "r",          ResistCmd       },
-    { "ram",        FreeRam         },
+//  { "ram",        FreeRam         },
     { "run",        RunCmd          },
 //  { "s",          Sleep219        },
     { "setpga",     PgaCmd          },
