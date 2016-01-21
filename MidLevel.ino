@@ -121,8 +121,10 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
     unsigned long timeStamp;
     const float closeEnough = 0.01;
     float shuntMA, busV, ambientTemp, batteryTemp;
+    unsigned long fastandfurious = millis();           // TEST
 
-    SetVoltage(targetV - 0.050);
+    //SetVoltage(targetV - 0.050);
+    SetVoltage(targetV);
     StartTimer(MaxChargeTimer, (minutes * 60.0));
 
     while (IsRunning(MaxChargeTimer)) {
@@ -134,6 +136,8 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
             return bailRC;
         if (shuntMA > MAmpCeiling)
             return MaxAmp;
+        if (shuntMA > (capacity / 10.0))             // absorbing at greater than C/10 implies that
+            return Success;                          //..battery is ready for constant current charging
         if (shuntMA < mAmpFloor)
             return MinAmp;
 
@@ -147,12 +151,15 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
                 return LowerBound;
             Monitor(&shuntMA, &busV);
         }
+        if ((fastandfurious + 5000) > timeStamp)          // TEST
+            GenReport(typeCV, shuntMA, busV, timeStamp);
         if (HasExpired(ReportTimer))
             GenReport(typeCV, shuntMA, busV, timeStamp);
 
     }
     return MaxTime;
 }
+
 
 
 //---------------------------------------------------------------------------------------
@@ -273,6 +280,24 @@ float ResistQ (boolean resisttype, unsigned delayMS)
 
     return ohms;
 
+}
+
+
+//---------------------------------------------------------------------------------------
+//   MaintCharge  -- Maintenance charge. Maintain charge of already fully charged
+//                   battery that is left in the holder for an extended period.
+//---------------------------------------------------------------------------------------
+
+void MaintCharge (void)
+{
+    float busV;
+
+    while (BatteryPresentQ() == Success) {
+         Monitor(NULL, &busV);
+        if (busV < 1.35) {
+            ConstantCurrent(capacity/10, 10);
+        }
+    }
 }
 
 
