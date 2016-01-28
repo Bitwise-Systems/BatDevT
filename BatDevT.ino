@@ -151,7 +151,7 @@ void loop (void)
         ReportExitStatus(rc);
 		Printf("\n");
     }
-    if (strcmp(commandTable[i].command, "run") == 0)
-        Printf("~");
+    if (strcmp(commandTable[i].command, "run") == 0)    // send the 'quit' escape sequence
+        Printf("$Q");
 
 }
