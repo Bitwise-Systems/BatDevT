@@ -1,7 +1,8 @@
 //---------------------------------------------------------------------------------
 //    Watermark.ino -- Write a distinctive pattern across all of SRAM during
 //                     system initialization. Provide the means to dump SRAM
-//                     contents to the serial port.
+//                     contents to the serial port. Dump will be formatted by
+//                     'BatDev.py'.
 //---------------------------------------------------------------------------------
 
 #include <avr/io.h>
@@ -10,10 +11,11 @@
 #define RamEnd   0x900
 
 
-//   The following "function" runs right after SREG, SPH, SPL, & r1 are
-//   initialized, but before .ds variables are copied from flash and .bs
-//   variables are set to zero. Interrupts are disabled at this point.
-//   See 'AVR C Library', section 4.6, 'The .initN Sections'.
+//   The following "function" runs about seven machine language instructions
+//   after a system reset, right after SREG, SPH, SPL, & r1 are initialized,
+//   but before .ds variables are copied from flash and .bss variables are
+//   set to zero. Interrupts are disabled at this point.  See 'AVR C Library',
+//   section 4.6, 'The .initN Sections'.
 
 void watermark (void) __attribute__ ((naked)) __attribute__ ((section (".init3")));
 
@@ -25,51 +27,30 @@ void watermark (void)
 
 
 //
-//    DumpRam -- Print SRAM contents to the serial port in hexdump format
+//    DumpRam -- Print SRAM contents to the serial port as ASCII hex characters
 //
 
 exitStatus DumpRAM (char **args)
 {
-    for (unsigned p = RamStart; p < RamEnd; p++) {
-        if (p % 16 == 0) {
-            Serial.print(F("\n"));
-            dumpWord(p);
-            Serial.print(F(": "));
-        }
-        if (p % 8 == 0)
-            Serial.print(F("  "));
+    unsigned p;
 
-        dumpByte(*(byte *)p);
+    Printf("$D");
+    for (p = RamStart; p < RamEnd; p++) {
+        dumpByte(*(byte *) p);
         delay(5);
-        Serial.print(F(" "));
+        Printf("%s", (p % 16 == 15) ? "\n" : " ");
     }
-    Serial.print(F("\n"));
     return Success;
 
 }
 
 
-static void dumpWord (word value)
-{
-    dumpNibble(value >> 12);
-    dumpNibble(value >> 8);
-    dumpNibble(value >> 4);
-    dumpNibble(value);
-}
-
-
 static void dumpByte (byte value)
-{
-    dumpNibble(value >> 4);
-    dumpNibble(value);
-}
-
-
-static void dumpNibble (byte value)
 {
     static const char hextable[] = "0123456789ABCDEF";
 
-    Serial.write(hextable[value & (byte) 0x0F]);
+    Serial.write(hextable[(value >> 4) & (byte) 0x0F]);
+    Serial.write(hextable[(value) & (byte) 0x0F]);
 
 }
 
