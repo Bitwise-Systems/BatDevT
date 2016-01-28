@@ -5,9 +5,6 @@
 //                 ReportExitStatus reads text from EEPROM,
 //                 Datasets formatted as Mathematica associations.
 //
-//      Future work:
-//          Meaningful run number
-//          Eliminate PotLevel in end record
 //
 
 
