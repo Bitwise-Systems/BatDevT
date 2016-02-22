@@ -3,7 +3,7 @@
 //
 //    Version 1:  First '219-only version. Equivalent to 'Drivers.ino' version 7
 //    Version 2:  Add the capability to put the '219 into power-down mode
-//
+//    Version 3:  Add "coulomb counter" to Monitor, plus supporting routines
 //
 //---------------------------------------------------------------------------------------------------
 
@@ -48,6 +48,8 @@ int Get219Address (void)
 
 }
 
+long long coulombs;
+long currentTimestamp, previousTimestamp, firstTimestamp;
 
 void Monitor (float *currentMA, float *busV)
 {
@@ -87,7 +89,7 @@ void Monitor (float *currentMA, float *busV)
         Wire.beginTransmission(chipAddress);    // It, too, is complete when the CNVR bit
         Wire.write(BusVoltageRegister);         // ...in the Bus Voltage Register goes high.
         Wire.endTransmission();
-                                               // 65 mSec wait gives time for other stuff
+
         do {
             Wire.requestFrom(chipAddress, 2);
             busRaw = (((unsigned) Wire.read()) << 8) | ((unsigned) Wire.read());
@@ -98,10 +100,31 @@ void Monitor (float *currentMA, float *busV)
         Wire.endTransmission();
         Wire.requestFrom(chipAddress, 2);
         shuntRaw = (int)((((unsigned) Wire.read()) << 8) | ((unsigned) Wire.read()));
+
+        currentTimestamp = millis();
+        coulombs += shuntRaw * (currentTimestamp - previousTimestamp);   // Sum (I dt)
+        previousTimestamp = currentTimestamp;
+
         *currentMA = (shuntScale * shuntRaw) + shuntOffset;
+
     }
+}
+
+float GetCoulombCount (void)    // Return coulomb counter value (in mAh)
+{
+    float mAms = (shuntScale * (float) coulombs) +
+        (shuntOffset * (float) (currentTimestamp - firstTimestamp));
+    return mAms / (1000.0 * 60.0 * 60.0);
 
 }
+
+void ResetCoulombCounter (void)    // Initialize coulomb counter variables
+{
+    coulombs = 0;
+    firstTimestamp = previousTimestamp = currentTimestamp = millis();
+
+}
+
 
 #ifdef Calibrate
 void Calib219 (int *currentMA, unsigned *busV)
