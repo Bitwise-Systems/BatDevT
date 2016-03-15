@@ -34,7 +34,7 @@ exitStatus DumpRAM (char **args)
 {
     unsigned p;
 
-    Printf("$D");
+    Printf("$D");                              // Request formatting from BatDev.py
     for (p = RamStart; p < RamEnd; p++) {
         dumpByte(*(byte *) p);
         delay(5);
