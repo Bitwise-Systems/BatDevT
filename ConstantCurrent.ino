@@ -16,6 +16,7 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM)
     lowerTarget = targetMA - 0.05;
 
     ActivateDetector(durationM);          // Initialize end-of-charge detector
+    Jugs(NULL, ResetJTime);
 
     if ((rc = RampUp(lowerTarget)) != Success)    // Ramp up to target current
         return rc;
@@ -27,7 +28,25 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM)
         if (rc = (exitStatus) FullyChargedQ())        // Reporting happens here
             return rc;
 
+  // return PanicVoltage;  //testing
+  /*                       // testing downshift loop in ccCmd
+    static int k = 0;
+    switch (k++) {
+    case 0:
+      return UpperBound;
+    case 1:
+      return PanicVoltage;
+    case 2:
+      return PanicVoltage;
+    case 3:
+      return DipDetected;
+    default:
+      return MaxTime;
+  }
+  */
+
         Monitor(&shuntMA, NULL);
+        Jugs(shuntMA, Tally);
 
         if (shuntMA < lowerBound)                     // nudge upwards
             do {
@@ -54,13 +73,14 @@ exitStatus RampUp (float targetMA)
 
     Monitor(&shuntMA, NULL);
     while (shuntMA < targetMA) {
-        if (NudgeVoltage(+1) == 0)     // Single-step ramp-up
+        if (NudgeVoltage(+1) == 0)      // Single-step ramp-up
             return UpperBound;
         if (HasExpired(ReportTimer)) {
             Monitor(NULL, &busV);
             GenReport(typeRampUp, shuntMA, busV, millis());
         }
         Monitor(&shuntMA, NULL);
+        Jugs(shuntMA, Tally);
     }
     Monitor(NULL, &busV);
     GenReport(typeRampUp, shuntMA, busV, millis());
