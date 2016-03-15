@@ -49,9 +49,18 @@
 #define typeJugs      12     // not written yet
 #define typeNudge     13     // nudgeCount, potLevel, millis
 #define typeIRes      14     // Internal Resistance record, ohms
+#define typeInfo      15     // Information notices
+
 
 #define BandPlus     7.0     // ConstantCurrent upper band width
 #define BandMinus    3.0     // ConstantCurrent lower band width
+
+#define Tally           0      // used in Jugs calls to specify an action
+#define ReportJugs      1
+#define ResetJTime      2
+#define ResetJugs       3
+#define ReturnCharge    4
+#define ReturnDischarge 5
 
 
 //---------------- Globals ----------------
@@ -79,6 +88,7 @@ const struct DispatchTable commandTable[] = {
     { "heat",       ReportHeats     },
     { "help",       PrintHelp       },
     { "iget",       iGetCmd         },
+    { "j",          JugsResetCmd    },
     { "list",       ListCmd         },
     { "load",       LoadCmd         },
     { "memq",       MemQCmd         },        // <<< TESTING >>>
@@ -120,6 +130,7 @@ void setup (void)
     InitTimerTask(RefreshTemperatures);
     InitLoads();
     SetPGA(8);
+    Jugs(NULL, ResetJugs);
 
     VersionCmd(NULL);
     SetID(NULL);        // Print the default battery ID as a
@@ -148,7 +159,7 @@ void loop (void)
     rc = (*commandTable[i].handler)(t);    // call command handler
 
     if (rc != 0) {
-        ReportExitStatus(rc);
+        CommentExitStatus(rc);
 		Printf("\n");
     }
     if (strcmp(commandTable[i].command, "run") == 0)    // send the 'quit' escape sequence
