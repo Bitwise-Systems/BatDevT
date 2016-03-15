@@ -126,6 +126,7 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
     //SetVoltage(targetV - 0.050);
     SetVoltage(targetV);
     StartTimer(MaxChargeTimer, (minutes * 60.0));
+    Jugs(NULL, ResetJTime);
 
     while (IsRunning(MaxChargeTimer)) {
         timeStamp = millis();
@@ -155,11 +156,92 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
             GenReport(typeCV, shuntMA, busV, timeStamp);
         if (HasExpired(ReportTimer))
             GenReport(typeCV, shuntMA, busV, timeStamp);
-
+        Jugs(shuntMA, Tally);
     }
     return MaxTime;
 }
 
+
+//---------------------------------------------------------------------------------------
+//    Jugs -- Accumulate charge and discharge mAH
+//---------------------------------------------------------------------------------------
+
+
+//#define Tally      0
+//#define ReportJugs 1
+//#define ResetJTime 2
+//#define ResetJugs  3
+
+/*---------------------------------------------------------------------------------------
+void Jugs (float milliAmps, int action) {                 // rebound and cooldown periods..
+                                                          //..will falsify results
+    static unsigned long jugMillis = millis();
+    static unsigned long jCTally;                         // charge tally
+    static unsigned long jDTally;                         // discharge tally
+    long scratchPad;
+
+    switch (action) {
+      case Tally:
+          scratchPad = round(milliAmps) * (millis() - jugMillis);
+          if (scratchPad > 0)
+              jCTally += (unsigned long)scratchPad;
+          else
+              jDTally += (unsigned long)(abs(scratchPad));
+          jugMillis = millis();
+          break;
+      case ReportJugs:
+          Printf("{%d, %lu mAH in, -%lu mAH out},\n", typeJugs,
+             jCTally / (60 * 60 * 1000L), jDTally / (60 * 60 * 1000L));
+          break;
+      case ResetJTime:                                  // a way around rebounds?
+          jugMillis = millis();
+          break;
+      case ResetJugs:
+          jCTally = 0;
+          jDTally = 0;
+          break;
+      default:
+          Printf("JugsWTF?\n");
+    }
+}
+---------------------------------------------------------------------------*/
+
+float Jugs (float milliAmps, int action) {
+
+    static unsigned long jugMillis;
+    unsigned long localMillis;
+    static float jCTally = 0.0;             // charge tally, in micro-coulombs (mA*mS)
+    static float jDTally = 0.0;             // discharge tally
+
+    switch (action) {
+      case Tally:
+          localMillis = millis();
+          if (milliAmps > 0.0)
+              jCTally += (milliAmps) * (localMillis - jugMillis);
+          else
+              jDTally -= (milliAmps) * (localMillis - jugMillis);
+          jugMillis = localMillis;
+          break;
+      case ReportJugs:
+          Printf("{%d, \"%1.2f mAH in, %1.2f mAH out\"},\n", typeJugs,
+             jCTally / (60.0 * 60.0 * 1000.0), jDTally / (60.0 * 60.0 * 1000.0));
+          break;
+      case ResetJTime:
+          jugMillis = millis();
+          break;
+      case ResetJugs:                       // ?can't do 0.0 exactly?
+          jCTally = 0.0;
+          jDTally = 0.0;
+          break;
+      case ReturnCharge:
+          return jCTally / (60.0 * 60.0 * 1000.0);
+      case ReturnDischarge:
+          return jDTally / (60.0 * 60.0 * 1000.0);
+      default:
+          Printf("JugsWTF?\n");
+    }
+    return 0.0;
+}
 
 
 //---------------------------------------------------------------------------------------
@@ -224,6 +306,7 @@ exitStatus discharge (float threshold, void (*loadFunction)())
 
     (*loadFunction)();
     ResyncTimer(ReportTimer);
+    Jugs(NULL, ResetJTime);
 
     Monitor(&shuntMA, &busV);
     while (busV > threshold) {
@@ -233,10 +316,11 @@ exitStatus discharge (float threshold, void (*loadFunction)())
             AllLoadsOff();
             return ConsoleInterrupt;
         }
-        if (HasExpired(ReportTimer)) {
+        if (HasExpired(ReportTimer))
             GenReport(typeDischarge, shuntMA, busV, millis());
-        }
+
         Monitor(&shuntMA, &busV);
+        Jugs(shuntMA, Tally);
     }
     AllLoadsOff();
     return Success;
@@ -262,6 +346,7 @@ float ResistQ (boolean resisttype, unsigned delayMS)
         LightOn();
     }
     delay(delayMS);
+    Printf("{%d, \"", typeInfo);
     Monitor(&shunt1stMA, &bus1stV);
     if (resisttype == ChargeIt) {
         PowerOff();
@@ -276,7 +361,7 @@ float ResistQ (boolean resisttype, unsigned delayMS)
     denom = (shunt1stMA - shunt2ndMA);
     if (denom == 0.0) denom = 0.001;
     ohms = abs((1000.0 * (bus2ndV - bus1stV)) / denom);
-    Printf("resistance: %1.4f ohms\n", ohms);
+    Printf("resistance: %1.4f ohms\"},\n", ohms);
 
     return ohms;
 
