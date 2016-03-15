@@ -38,12 +38,8 @@ void EndChargeRecords (unsigned long startingTime, exitStatus rc)
 {
     ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
 
-    Printf("{%d, \"%lu mins %lu secs elapsed\", \"Pot: %d\", ",
+    Printf("{%d, \"%lu mins %lu secs elapsed\", \"Pot: %d\"}}];\n",
             typeEnd, qr.quot, qr.rem, GetPotLevel());
-
-    Printf("\"");
-    ReportExitStatus(rc);
-    Printf("\"}}];\n");
 
 }
 
@@ -65,10 +61,20 @@ void GenReport (int recordType, float shuntMA, float busV, unsigned long millise
 
 }
 
+void CommentExitStatus (exitStatus rc)
+{
+    Printf("(* ");
+    PrintEEPROMstring(rc);
+    Printf(" *)");
+
+}
+
 
 void ReportExitStatus (exitStatus rc)
 {
+    Printf("{%d, \"", typeInfo);
     PrintEEPROMstring(rc);
+    Printf("\"},\n");
 
 }
 
