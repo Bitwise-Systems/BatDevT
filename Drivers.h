@@ -51,8 +51,8 @@ typedef enum {          // Function return codes used throughout the application
     UpperBound,
     LowerBound,
     PBad,
-    PanicVoltage,
-    MaxChargeVoltage,
+    PanicVoltage,          // max permitted voltage on individual session
+    MaxChargeVoltage,      // max voltage ever allowed
     MaxAmp,
     MinAmp,
     PanicTemp,
