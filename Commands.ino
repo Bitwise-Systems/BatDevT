@@ -2,7 +2,6 @@
 //      Commands.ino  --  Handlers for interpreter commands
 //
 
-
 exitStatus BatPresentCmd (char **args)
 {
     return BatteryPresentQ();
@@ -24,6 +23,8 @@ exitStatus BatteryTypeCmd (char **args)
 //
 //------------------------------------------------------------------------------
 
+#define ToMinutes(div) ((57.0 * div) + 45.0)
+
 exitStatus ccCmd (char **args)
 {
     float busV;
@@ -32,15 +33,15 @@ exitStatus ccCmd (char **args)
 
     float divisor = 4.0;                      // Default C-rate = C/4
     float targetMA = capacity / divisor;
-    float minutes = (57.0 * divisor) + 45.0;
+    float minutes = ToMinutes(divisor);
 
     int i = 0;
     while (*++args != NULL) {
         switch (++i) {
           case 1:
-            divisor = constrain(atof(*args), 1.0, 20.0);
+            divisor = constrain(atof(*args), 1.0, 50.0);
             targetMA = capacity / divisor;
-            minutes = (57.0 * divisor) + 45.0;
+            minutes = ToMinutes(divisor);
             break;
           case 2:
             minutes = atof(*args);
@@ -65,11 +66,22 @@ exitStatus ccCmd (char **args)
 //  Formerly, a check for external power occurred here. This is now
 //  available as a standalone command, and can be incorporated into any script.
 
-    PrintChargeParams(divisor, targetMA, minutes);
-    startRecordsTime = StartChargeRecords();
-    rc = ConstantCurrent(targetMA, minutes);
-    EndChargeRecords(startRecordsTime, rc);
+    startRecordsTime = millis();
+    do {                                          // adjust charge rate if it is too fast
+        PrintChargeParams(divisor, targetMA, minutes);
+        StartChargeRecords();
+        rc = ConstantCurrent(targetMA, minutes);
+        Jugs(NULL, ReportJugs);
+        SetVoltage(1.1);                           // otherwise pot setting stays too high
+        divisor *= (1.5);                          // downshift to 2/3 of prev charge rate
+        targetMA = capacity / divisor;
+        minutes = (1.0 - (Jugs(0.0, ReturnCharge)/capacity)) * ToMinutes(divisor);
+        ReportExitStatus(rc);
+        delay(10);
+        EndChargeRecords(startRecordsTime, rc);
+    } while ((divisor < 31) && (rc == PanicVoltage || rc == UpperBound));
     PowerOff();
+    delay(10);
     SetVoltage(SetVLow);
 
     return rc;
@@ -123,6 +135,7 @@ exitStatus cvCmd (char **args)
         targetV += 0.1;
     } while (targetV < 1.6);
 
+    Jugs(NULL, ReportJugs);
     EndChargeRecords(startRecordsTime, rc);
     PowerOff();
     SetVoltage(SetVLow);
@@ -165,6 +178,7 @@ exitStatus DischargeCmd (char **args)
 
     PowerOff();               // Ensure TLynx power isn't just running down the drain.
     PrintDischargeParams();
+
     if ((rc = discharge(thresh1, LoadByCapacity)) != Success)
         return rc;
     if ((rc = rebound(reboundSecs)) != Success)
@@ -173,6 +187,8 @@ exitStatus DischargeCmd (char **args)
         return rc;
     if ((rc = rebound(reboundSecs)) != Success)
         return rc;
+
+    Jugs(NULL, ReportJugs);
     EndDischargeRecords();
     AllLoadsOff();
 
@@ -227,8 +243,17 @@ exitStatus iGetCmd (char **args)
     float shuntMA;
 
     Monitor(&shuntMA, NULL);
-    Printf("Shunt current: %1.1fmA\n", shuntMA);
+    Printf("{%d, \"Shunt current: %1.1fmA\"},\n", typeInfo, shuntMA);
     return Success;
+}
+
+exitStatus JugsResetCmd (char **args)
+{
+    Jugs(NULL, ResetJugs);
+//  ResetCoulombCounter();
+    Printf("{%d, \"resetJugsTally\"},\n", typeInfo);
+    return Success;
+
 }
 
 
@@ -424,8 +449,9 @@ exitStatus vGetCmd (char **args)
     float busV;
 
     Monitor(NULL, &busV);
-    Printf("Bus Voltage: %1.3fV\n", busV);
+    Printf("{%d, \"Bus Voltage: %1.3fV\"},\n", typeInfo, busV);
     return Success;
+
 }
 
 
