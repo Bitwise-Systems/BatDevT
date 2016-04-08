@@ -126,60 +126,6 @@ void ResetCoulombCounter (void)    // Initialize coulomb counter variables
 }
 
 
-#ifdef Calibrate
-void Calib219 (int *currentMA, unsigned *busV)
-{
-    byte sampleCount;
-    unsigned busRaw, accumRaw = 0;
-
-    if (busV != NULL) {
-        for (sampleCount = 0; sampleCount < 64; sampleCount++) {    // Collect 4^n samples, n = 3
-            Wire.beginTransmission(chipAddress);                    // ...(see oversampling appnote, AVR121).
-            Wire.write(ConfigRegister);
-            Wire.write(configBusV >> 8);
-            Wire.write(configBusV & 0x00FF);
-            Wire.endTransmission();                 // Trigger a new BUS voltage ADC conversion.
-
-            Wire.beginTransmission(chipAddress);    // It's complete when the CNVR bit in
-            Wire.write(BusVoltageRegister);         // ...the Bus Voltage Register is asserted.
-            Wire.endTransmission();
-            do {
-                Wire.requestFrom(chipAddress, 2);
-                busRaw = (((unsigned) Wire.read()) << 8) | ((unsigned) Wire.read());
-
-            } while ((busRaw & 0x0002) == 0);       // Spin until CNVR goes high.
-
-            accumRaw += (busRaw >> 3);      // Clobber OVF, CNVR, & reserved bit, and add to running sum.
-                                            // At these voltages, the accumulator can't overflow.
-        }
-        *busV = (accumRaw >> 3);            // "Decimate" by shifting right n bits (see appnote)
-    }
-    if (currentMA != NULL) {
-        Wire.beginTransmission(chipAddress);
-        Wire.write(ConfigRegister);
-        Wire.write(configShuntV >> 8);
-        Wire.write(configShuntV & 0x00FF);
-        Wire.endTransmission();                 // Trigger a new SHUNT voltage conversion.
-
-        Wire.beginTransmission(chipAddress);    // It, too, is complete when the CNVR bit
-        Wire.write(BusVoltageRegister);         // ...in the Bus Voltage Register goes high.
-        Wire.endTransmission();
-                                               // 65 mSec wait gives time for other stuff
-        do {
-            Wire.requestFrom(chipAddress, 2);
-            busRaw = (((unsigned) Wire.read()) << 8) | ((unsigned) Wire.read());
-        } while ((busRaw & 0x0002) == 0);
-
-        Wire.beginTransmission(chipAddress);    // Result is available in the Shunt Voltage Register
-        Wire.write(ShuntVoltageRegister);
-        Wire.endTransmission();
-        Wire.requestFrom(chipAddress, 2);
-        *currentMA = (int)((((unsigned) Wire.read()) << 8) | ((unsigned) Wire.read()));
-    }
-
-}
-#endif
-
 void SetPGA (byte divisor)
 {
     coList k = FetchConstants(chipAddress, divisor);
@@ -250,20 +196,20 @@ coList FetchConstants (byte chipAddress, byte pgaDivisor)
     switch (chipAddress) {
       case 0x41:                             // Mike's OSH Park PCB:
         k.busScale = 0.0005002685684646561;
-        k.busOffset = 0.02374716782394622;        // 'Calib219V.nb', 11/21/15
+        k.busOffset = 0.02374716782394622;         // 'Calib219V.nb', 11/21/15
         switch (pgaDivisor) {
-          case 1:
-            k.shuntScale = 0.09581313567602281;    // 'Calib219I.nb', 11/21/15
-            k.shuntOffset = 0.05481343136293849;
-            break;
-          case 2:
-            k.shuntScale = 0.0957912383713292;
-            k.shuntOffset = 0.12102293360328849;
-            break;
-          case 4:
-            k.shuntScale = 0.09574631628482281;
-            k.shuntOffset = 0.15934066397565305;
-            break;
+//        case 1:
+//          k.shuntScale = 0.09581313567602281;    // 'Calib219I.nb', 11/21/15
+//          k.shuntOffset = 0.05481343136293849;
+//          break;
+//        case 2:
+//          k.shuntScale = 0.0957912383713292;
+//          k.shuntOffset = 0.12102293360328849;
+//          break;
+//        case 4:
+//          k.shuntScale = 0.09574631628482281;
+//          k.shuntOffset = 0.15934066397565305;
+//          break;
           case 8:
             k.shuntScale = 0.09567442458722034;
             k.shuntOffset = 0.43657551106382464;
@@ -279,18 +225,18 @@ coList FetchConstants (byte chipAddress, byte pgaDivisor)
         k.busScale = 0.000499663546363088;
         k.busOffset = 0.023826837671084893;       // 'Calib219V.nb', 03/22/15
         switch (pgaDivisor) {
-          case 1:
-            k.shuntScale = 0.0996220581947172;    // 'Calib219I8.nb', 03/24/15
-            k.shuntOffset = 0.02270981277080475;
-            break;
-          case 2:
-            k.shuntScale = 0.09958108326824884;
-            k.shuntOffset = -0.012986532466452427;
-            break;
-          case 4:
-            k.shuntScale = 0.09951684096712951;
-            k.shuntOffset = -0.11590949128942318;
-            break;
+//        case 1:
+//          k.shuntScale = 0.0996220581947172;    // 'Calib219I8.nb', 03/24/15
+//          k.shuntOffset = 0.02270981277080475;
+//          break;
+//        case 2:
+//          k.shuntScale = 0.09958108326824884;
+//          k.shuntOffset = -0.012986532466452427;
+//          break;
+//        case 4:
+//          k.shuntScale = 0.09951684096712951;
+//          k.shuntOffset = -0.11590949128942318;
+//          break;
           case 8:
             k.shuntScale = 0.09941834338687703;
             k.shuntOffset = -0.16818951271813098;
@@ -312,21 +258,3 @@ coList FetchConstants (byte chipAddress, byte pgaDivisor)
     return k;
 
 }
-
-/* -------------------------------
-static const unsigned configSleep = 0x0000;
-
-int Sleep219 (char **args)
-{
-    (void) args;
-
-    Wire.beginTransmission(chipAddress);
-    Wire.write(ConfigRegister);
-    Wire.write(configSleep >> 8);
-    Wire.write(configSleep & 0x00FF);
-    Wire.endTransmission();
-
-    return 0;
-
-}
-------------------------------------- */
