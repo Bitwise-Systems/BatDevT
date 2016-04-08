@@ -14,7 +14,7 @@ typedef enum {
     MaxChargeTimer,     // Used in ConstantCurrent et. al. to limit charge time
     ArmDetectorTimer,   // Used to prevent premature arming of dip detector
     ReboundTimer,       // Used to control rebound time in discharger
-    OneShotTestTimer,   // variable-period timer for testing
+//  OneShotTestTimer,   // variable-period timer for testing
 
     NumOneShot          // Additional timer ID's go before this line
 } OneShotTimerID;
