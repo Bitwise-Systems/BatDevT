@@ -21,7 +21,7 @@
 
 #include <stdarg.h>
 
-void _Printf (char *format, ...)
+void _Printf (const char *format, ...)
 {
     long lval;
     float fval;
