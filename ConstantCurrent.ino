@@ -28,23 +28,6 @@ exitStatus ConstantCurrent (float targetMA, unsigned durationM)
         if (rc = (exitStatus) FullyChargedQ())        // Reporting happens here
             return rc;
 
-  // return PanicVoltage;  //testing
-  /*                       // testing downshift loop in ccCmd
-    static int k = 0;
-    switch (k++) {
-    case 0:
-      return UpperBound;
-    case 1:
-      return PanicVoltage;
-    case 2:
-      return PanicVoltage;
-    case 3:
-      return DipDetected;
-    default:
-      return MaxTime;
-  }
-  */
-
         Monitor(&shuntMA, NULL);
         Jugs(shuntMA, Tally);
 
