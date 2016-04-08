@@ -96,6 +96,7 @@ static int MapVoltageToLevel (float v)
 void PowerOn (void)
 {
      digitalWriteFast(PowerON, HIGH);     // MOSFET driver inverts for a negative logic TLynx
+     delay(20);                           // Let it stabilize.
 }
 
 
