@@ -4,7 +4,6 @@
 //                    drivers.
 //=======================================================================================
 
-
 //---------------------------------------------------------------------------------------
 //    BailOutQ  --
 //---------------------------------------------------------------------------------------
@@ -121,9 +120,7 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
     unsigned long timeStamp;
     const float closeEnough = 0.01;
     float shuntMA, busV, ambientTemp, batteryTemp;
-    unsigned long fastandfurious = millis();           // TEST
 
-    //SetVoltage(targetV - 0.050);
     SetVoltage(targetV);
     StartTimer(MaxChargeTimer, (minutes * 60.0));
     Jugs(NULL, ResetJTime);
@@ -131,14 +128,15 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
     while (IsRunning(MaxChargeTimer)) {
         timeStamp = millis();
         Monitor(&shuntMA, &busV);
+        Jugs(shuntMA, Tally);
 
         bailRC = BailOutQ();
         if (bailRC != 0)
             return bailRC;
         if (shuntMA > MAmpCeiling)
             return MaxAmp;
-        if (shuntMA > (capacity / 10.0))             // absorbing at greater than C/10 implies that
-            return Success;                          //..battery is ready for constant current charging
+//      if (shuntMA > (capacity / 10.0))    // absorbing at greater than C/10 implies that
+//          return Success;                 //..battery is ready for constant current charging
         if (shuntMA < mAmpFloor)
             return MinAmp;
 
@@ -152,62 +150,19 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
                 return LowerBound;
             Monitor(&shuntMA, &busV);
         }
-        if ((fastandfurious + 5000) > timeStamp)          // TEST
-            GenReport(typeCV, shuntMA, busV, timeStamp);
         if (HasExpired(ReportTimer))
             GenReport(typeCV, shuntMA, busV, timeStamp);
-        Jugs(shuntMA, Tally);
     }
     return MaxTime;
 }
 
 
 //---------------------------------------------------------------------------------------
-//    Jugs -- Accumulate charge and discharge mAH
+//    Jugs --
 //---------------------------------------------------------------------------------------
 
-
-//#define Tally      0
-//#define ReportJugs 1
-//#define ResetJTime 2
-//#define ResetJugs  3
-
-/*---------------------------------------------------------------------------------------
-void Jugs (float milliAmps, int action) {                 // rebound and cooldown periods..
-                                                          //..will falsify results
-    static unsigned long jugMillis = millis();
-    static unsigned long jCTally;                         // charge tally
-    static unsigned long jDTally;                         // discharge tally
-    long scratchPad;
-
-    switch (action) {
-      case Tally:
-          scratchPad = round(milliAmps) * (millis() - jugMillis);
-          if (scratchPad > 0)
-              jCTally += (unsigned long)scratchPad;
-          else
-              jDTally += (unsigned long)(abs(scratchPad));
-          jugMillis = millis();
-          break;
-      case ReportJugs:
-          Printf("{%d, %lu mAH in, -%lu mAH out},\n", typeJugs,
-             jCTally / (60 * 60 * 1000L), jDTally / (60 * 60 * 1000L));
-          break;
-      case ResetJTime:                                  // a way around rebounds?
-          jugMillis = millis();
-          break;
-      case ResetJugs:
-          jCTally = 0;
-          jDTally = 0;
-          break;
-      default:
-          Printf("JugsWTF?\n");
-    }
-}
----------------------------------------------------------------------------*/
-
-float Jugs (float milliAmps, int action) {
-
+float Jugs (float milliAmps, int action)
+{
     static unsigned long jugMillis;
     unsigned long localMillis;
     static float jCTally = 0.0;             // charge tally, in micro-coulombs (mA*mS)

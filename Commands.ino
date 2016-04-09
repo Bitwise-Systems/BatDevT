@@ -23,7 +23,7 @@ exitStatus BatteryTypeCmd (char **args)
 //
 //------------------------------------------------------------------------------
 
-#define ToMinutes(div) ((57.0 * div) + 45.0)
+#define ToMinutes(div) ((57.0 * div) + 45.0)    // map C-rate to charging minutes
 
 exitStatus ccCmd (char **args)
 {
@@ -56,30 +56,28 @@ exitStatus ccCmd (char **args)
     Printf("C-rate = %1.1f; minutes = %1.1f; targetMA = %1.1f\n", divisor, minutes, targetMA);
 
     Monitor(NULL, &busV);
-    Printf("Voltage just before setvoltage: %1.3f\n", busV);  // <<< testing initial high voltage >>>
+    Printf("Voltage just before setvoltage: %1.3f\n", busV);
     SetVoltage(busV + 0.050);                                 // Final value should be slightly
     PowerOn();                                                // ...over battery voltage.
-    delay(20);
-    Monitor(NULL, &busV);                                     // <<< testing initial high voltage >>>
-    Printf("Voltage just after setvoltage: %1.3f\n", busV);   // <<< testing initial high voltage >>>
-
-//  Formerly, a check for external power occurred here. This is now
-//  available as a standalone command, and can be incorporated into any script.
-
+//  delay(20);
+    Monitor(NULL, &busV);
+    Printf("Voltage just after setvoltage: %1.3f\n", busV);
     startRecordsTime = millis();
-    do {                                          // adjust charge rate if it is too fast
+
+    do {
         PrintChargeParams(divisor, targetMA, minutes);
         StartChargeRecords();
         rc = ConstantCurrent(targetMA, minutes);
         Jugs(NULL, ReportJugs);
-        SetVoltage(1.1);                           // otherwise pot setting stays too high
-        divisor *= (1.5);                          // downshift to 2/3 of prev charge rate
+        SetVoltage(1.1);                   // otherwise pot setting stays too high
+        divisor *= 1.5;                    // downshift to 2/3 of previous charge rate
         targetMA = capacity / divisor;
         minutes = (1.0 - (Jugs(0.0, ReturnCharge)/capacity)) * ToMinutes(divisor);
         ReportExitStatus(rc);
-        delay(10);
+        delay(10);                                  // <<< ?? >>>
         EndChargeRecords(startRecordsTime, rc);
     } while ((divisor < 31) && (rc == PanicVoltage || rc == UpperBound));
+
     PowerOff();
     delay(10);
     SetVoltage(SetVLow);
@@ -96,53 +94,47 @@ exitStatus ccCmd (char **args)
 //
 //------------------------------------------------------------------------------
 
-exitStatus cvCmd (char **args)
-{
-    exitStatus rc;
-    unsigned long startRecordsTime;
-
-    float targetV = SetVLow;        // defaults...
-    unsigned minutes = 10;
-    float mAmpFloor = 2.0;
-
-    int i = 0;
-    while (*++args != NULL) {
-        switch (++i) {
-          case 1:
-            targetV = constrain(atof(*args), SetVLow, SetVHigh);
-            break;
-          case 2:
-            minutes = constrain(atoi(*args), 1, 1440);
-            break;
-          case 3:
-            mAmpFloor = constrain(atof(*args), 1.0, MAmpCeiling);
-            break;
-        }
-    }
-//  Formerly, a 'battery present check' and an 'external power check' occurred here.
-//  These are now available as standalone commands, and can be incorporated into any script.
-
-    PrintChargeParams(0.0, targetV, minutes);
-    SetVoltage(SetVLow);
-    PowerOn();
-    delay(20);
-    startRecordsTime = StartChargeRecords();
-    do {
-        rc = ConstantVoltage(targetV, minutes, mAmpFloor);
-        if (rc != 0)
-            ReportExitStatus(rc);
-        delay(5000);
-        targetV += 0.1;
-    } while (targetV < 1.6);
-
-    Jugs(NULL, ReportJugs);
-    EndChargeRecords(startRecordsTime, rc);
-    PowerOff();
-    SetVoltage(SetVLow);
-
-    return Success;
-
-}
+// exitStatus cvCmd (char **args)
+// {
+//     exitStatus rc;
+//     unsigned long startRecordsTime;
+//
+//     float targetV = SetVLow;        // defaults...
+//     unsigned minutes = 10;
+//     float mAmpFloor = 2.0;
+//
+//     int i = 0;
+//     while (*++args != NULL) {
+//         switch (++i) {
+//           case 1:
+//             targetV = constrain(atof(*args), SetVLow, SetVHigh);
+//             break;
+//           case 2:
+//             minutes = constrain(atoi(*args), 1, 1440);
+//             break;
+//           case 3:
+//             mAmpFloor = constrain(atof(*args), 1.0, MAmpCeiling);
+//             break;
+//         }
+//     }
+// //  Formerly, a 'battery present check' and an 'external power check' occurred here.
+// //  These are now available as standalone commands, and can be incorporated into any script.
+//
+//     SetVoltage(SetVLow);
+//     PowerOn();
+//     PrintChargeParams(0.0, targetV, minutes);
+//     startRecordsTime = StartChargeRecords();
+//     rc = ConstantVoltage(targetV, minutes, mAmpFloor);
+//     Jugs(NULL, ReportJugs);
+//     if (rc != 0)
+//         ReportExitStatus(rc);
+//     EndChargeRecords(startRecordsTime, rc);
+//     PowerOff();
+//     SetVoltage(SetVLow);
+//
+//     return rc;
+//
+// }
 
 
 //------------------------------------------------------------------------------
@@ -157,7 +149,7 @@ exitStatus DischargeCmd (char **args)
     void LoadByCapacity(void), LightOn(void);
     exitStatus rc, discharge(float threshold, void (*loadFunction)());
 
-    float thresh1 = 0.8;            // defaults...
+    float thresh1 = 0.8;      // Defaults...
     float thresh2 = 1.0;
     unsigned reboundSecs = 480;
 
@@ -179,24 +171,18 @@ exitStatus DischargeCmd (char **args)
     PowerOff();               // Ensure TLynx power isn't just running down the drain.
     PrintDischargeParams();
 
-    if ((rc = discharge(thresh1, LoadByCapacity)) != Success)
-        return rc;
-    if ((rc = rebound(reboundSecs)) != Success)
-        return rc;
-    if ((rc = discharge(thresh2, LightOn)) != Success)
-        return rc;
-    if ((rc = rebound(reboundSecs)) != Success)
-        return rc;
-
+    if ((rc = discharge(thresh1, LoadByCapacity)) == Success)
+      if ((rc = rebound(reboundSecs)) == Success)
+        if ((rc = discharge(thresh2, LightOn)) == Success)
+          if ((rc = rebound(reboundSecs)) == Success)
+              ;
     Jugs(NULL, ReportJugs);
     EndDischargeRecords();
-    AllLoadsOff();
 
     return Success;
 
 }
 
-//------------------------------------------------------------------------------
 
 exitStatus ExternalPowerQ (char **args)
 {
@@ -205,7 +191,6 @@ exitStatus ExternalPowerQ (char **args)
 
     SetVoltage(SetVLow);
     PowerOn();
-    delay(20);
     Monitor(NULL, &busV);
     SetVoltage(busV + 0.2);
     rc = (StatusQ() == 0) ? Success : IdealDiodeStatus;
@@ -230,12 +215,12 @@ exitStatus ExternalPowerQ (char **args)
 //
 // }
 
-exitStatus GetPgaCmd (char **args)
-{
-    (void) args;
-    Printf("PGA divisor: %d\n", GetPGA());
-    return Success;
-}
+// exitStatus GetPgaCmd (char **args)
+// {
+//     (void) args;
+//     Printf("PGA divisor: %d\n", GetPGA());
+//     return Success;
+// }
 
 
 exitStatus iGetCmd (char **args)
@@ -257,66 +242,131 @@ exitStatus JugsResetCmd (char **args)
 }
 
 
-exitStatus LoadCmd (char **args)
+// exitStatus LoadCmd (char **args)
+// {
+//     int i;
+//     static struct {
+//         const char *command;
+//         void (*handler)(void);
+//
+//     } loadTable[] = {
+//         { "+h",    HeavyOn   },
+//         { "-h",    HeavyOff  },
+//         { "+m",    MediumOn  },
+//         { "-m",    MediumOff },
+//         { "+l",    LightOn   },
+//         { "-l",    LightOff  },
+//         { "+b",    LoadBus   },
+//         { "-b",    UnLoadBus },
+//         { "-all",  AllLoadsOff },
+//         { NULL,    UnknownLoad }
+//     };
+//
+//     while (*++args != NULL) {
+//         for (i = 0; loadTable[i].command != NULL; i++)
+//             if (strcmp(loadTable[i].command, *args) == 0)
+//                 break;
+//
+//         (*loadTable[i].handler)();
+//     }
+//     LoadStatus();
+//     return Success;
+//
+// }
+
+
+// exitStatus NudgeCmd (char **args)
+// {
+//     Printf("Nudged by %d\n", NudgeVoltage((*++args == NULL) ? 1 : atoi(*args)));
+//     return Success;
+// }
+
+
+// exitStatus PgaCmd (char **args)
+// {
+//     int divisor;
+//
+//     if (*++args != NULL) {
+//         divisor = atoi(*args);
+//         switch (divisor) {
+//           case 1:
+//           case 2:
+//           case 4:
+//           case 8:
+//             SetPGA(divisor);
+//             break;
+//           default:
+//             Printf("Invalid divisor.  Need 1, 2, 4, or 8.\n");
+//             break;
+//         }
+//     }
+//     Printf("PGA divisor is %d\n", GetPGA());
+//     return Success;
+// }
+
+
+//------------------------------------------------------------------------------
+//    Precharge -- Prepare battery for constant current charging
+//
+//    Usage: p [voltageFloor [resistanceCeiling
+//                     [targetVoltage [prechargeMinutes]]]]
+//
+//------------------------------------------------------------------------------
+
+exitStatus Precharge (char **args)
 {
-    int i;
-    static struct {
-        const char *command;
-        void (*handler)(void);
+    exitStatus rc;
+    float busV, chargingResistance;
+    unsigned long startRecordsTime;
 
-    } loadTable[] = {
-        { "+h",    HeavyOn   },
-        { "-h",    HeavyOff  },
-        { "+m",    MediumOn  },
-        { "-m",    MediumOff },
-        { "+l",    LightOn   },
-        { "-l",    LightOff  },
-        { "+b",    LoadBus   },
-        { "-b",    UnLoadBus },
-        { "-all",  AllLoadsOff },
-        { NULL,    UnknownLoad }
-    };
+    float voltageFloor = 0.8;          // defaults...
+    float resistanceCeiling = 3.0;
+    float targetV = 1.6;
+    unsigned minutes = 5;
 
+    int i = 0;
     while (*++args != NULL) {
-        for (i = 0; loadTable[i].command != NULL; i++)
-            if (strcmp(loadTable[i].command, *args) == 0)
-                break;
-
-        (*loadTable[i].handler)();
-    }
-    LoadStatus();
-    return Success;
-
-}
-
-
-exitStatus NudgeCmd (char **args)
-{
-    Printf("Nudged by %d\n", NudgeVoltage((*++args == NULL) ? 1 : atoi(*args)));
-    return Success;
-}
-
-
-exitStatus PgaCmd (char **args)
-{
-    int divisor;
-
-    if (*++args != NULL) {
-        divisor = atoi(*args);
-        switch (divisor) {
+        switch (++i) {
           case 1:
-          case 2:
-          case 4:
-          case 8:
-            SetPGA(divisor);
+            voltageFloor = constrain(atof(*args), 0.0, 1.0);
             break;
-          default:
-            Printf("Invalid divisor.  Need 1, 2, 4, or 8.\n");
+          case 2:
+            resistanceCeiling = constrain(atof(*args), 0.0, 10.0);
+            break;
+          case 3:
+            targetV = constrain(atof(*args), 1.1, 1.7);
+            break;
+          case 4:
+            minutes = constrain(atoi(*args), 1, 30);
             break;
         }
     }
-    Printf("PGA divisor is %d\n", GetPGA());
-    return Success;
+    Monitor(NULL, &busV);
+    if (busV > 1.30)
+        return Success;        // no need to precharge  <<< should this be loaded? >>>
+
+    startRecordsTime = millis();
+    while (minutes < 40) {          // continue precharge if there is too little effect
+        PrintChargeParams(0.0, targetV, minutes);
+        StartChargeRecords();
+        SetVoltage(SetVLow);
+        PowerOn();
+        rc = ConstantVoltage(targetV, minutes, 1);    // <<< What about BailQ? >>>
+        PowerOff();
+        Jugs(NULL, ReportJugs);
+        EndChargeRecords(startRecordsTime, rc);
+        ReportExitStatus(rc);
+        delay(15 * 1000);                             // allow surface charge to fade
+        chargingResistance = ResistQ(ChargeIt, 1000);
+        if (chargingResistance < 1.1)
+            break;
+        minutes += 30;
+    }
+    SetVoltage(SetVLow);
+    if ((rc != Success) || (rc != MaxTime))     // <<< turn MaxTime to Success >>>
+        ReportExitStatus(rc);
+    return rc;
+
 }
 
 
@@ -356,18 +406,6 @@ exitStatus PwrOffCmd (char **args)
     PowerOff();
     Printf("Power OFF\n");
     return Success;
-}
-
-
-exitStatus Report (char **args)
-{
-    (void) args;
-    float busV, shuntMA;
-
-    Monitor(&shuntMA, &busV);
-    GenReport(typeCC, shuntMA, busV, millis());
-    return Success;
-
 }
 
 
@@ -422,15 +460,6 @@ exitStatus SetCapacity (char **args)
     Printf("\rBattery mAH: %d\n", capacity);
     return Success;
 
-}
-
-
-exitStatus ThermLoop (char **args)    // Provide access to 'ThermMonitor'
-{
-    int minutes = (*++args == NULL) ? 1 : atoi(*args);
-    (void) ThermMonitor(minutes);
-    Printf("Done\n");
-    return Success;
 }
 
 

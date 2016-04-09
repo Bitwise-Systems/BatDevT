@@ -41,6 +41,8 @@
 #define typeIRes      14     // Internal Resistance record, ohms
 #define typeInfo      15     // Information notices
 
+#define ChargeIt       0     // Used in ResistQ to request "charging" resistance
+#define DischargeIt    1     // Used in ResistQ to request "discharging" resistance
 
 //    "Jugs" routine command codes:
 
