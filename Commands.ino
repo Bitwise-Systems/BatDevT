@@ -27,9 +27,11 @@ exitStatus BatteryTypeCmd (char **args)
 
 exitStatus ccCmd (char **args)
 {
-    float busV;
     exitStatus rc;
-    unsigned long startRecordsTime;
+    float busV, unchargedPercent;
+    unsigned long startingTime = millis();
+    exitStatus GenCharge(float, exitStatus (*)(float, unsigned), float, unsigned);
+
 
     float divisor = 4.0;                      // Default C-rate = C/4
     float targetMA = capacity / divisor;
@@ -53,88 +55,20 @@ exitStatus ccCmd (char **args)
         }
     }
     minutes = constrain(minutes, 1.0, 1440.0);
-    Printf("C-rate = %1.1f; minutes = %1.1f; targetMA = %1.1f\n", divisor, minutes, targetMA);
-
-    Monitor(NULL, &busV);
-    Printf("Voltage just before setvoltage: %1.3f\n", busV);
-    SetVoltage(busV + 0.050);                                 // Final value should be slightly
-    PowerOn();                                                // ...over battery voltage.
-//  delay(20);
-    Monitor(NULL, &busV);
-    Printf("Voltage just after setvoltage: %1.3f\n", busV);
-    startRecordsTime = millis();
-
     do {
-        PrintChargeParams(divisor, targetMA, minutes);
-        StartChargeRecords();
-        rc = ConstantCurrent(targetMA, minutes);
-        Jugs(NULL, ReportJugs);
-        SetVoltage(1.1);                   // otherwise pot setting stays too high
-        divisor *= 1.5;                    // downshift to 2/3 of previous charge rate
+        rc = GenCharge(divisor, ConstantCurrent, targetMA, minutes);
+        divisor *= 1.5;    // Downshift to 2/3 of previous charge rate
         targetMA = capacity / divisor;
-        minutes = (1.0 - (Jugs(0.0, ReturnCharge)/capacity)) * ToMinutes(divisor);
-        ReportExitStatus(rc);
-        delay(10);                                  // <<< ?? >>>
-        EndChargeRecords(startRecordsTime, rc);
-    } while ((divisor < 31) && (rc == PanicVoltage || rc == UpperBound));
+        unchargedPercent = 1.0 - (Jugs(0.0, ReturnCharge) / (1.2 * capacity));
+        minutes = unchargedPercent * ToMinutes(divisor);
+    } while (divisor < 31 && unchargedPercent > 0);
 
-    PowerOff();
-    delay(10);
-    SetVoltage(SetVLow);
+    ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
+    Printf("Constant-current total elapsed time: %lu:%lu.\n", qr.quot, qr.rem);
 
     return rc;
 
 }
-
-
-//------------------------------------------------------------------------------
-//    cvCmd -- Constant voltage command handler
-//
-//    Usage: cv [targetV [minutes [floor]]]
-//
-//------------------------------------------------------------------------------
-
-// exitStatus cvCmd (char **args)
-// {
-//     exitStatus rc;
-//     unsigned long startRecordsTime;
-//
-//     float targetV = SetVLow;        // defaults...
-//     unsigned minutes = 10;
-//     float mAmpFloor = 2.0;
-//
-//     int i = 0;
-//     while (*++args != NULL) {
-//         switch (++i) {
-//           case 1:
-//             targetV = constrain(atof(*args), SetVLow, SetVHigh);
-//             break;
-//           case 2:
-//             minutes = constrain(atoi(*args), 1, 1440);
-//             break;
-//           case 3:
-//             mAmpFloor = constrain(atof(*args), 1.0, MAmpCeiling);
-//             break;
-//         }
-//     }
-// //  Formerly, a 'battery present check' and an 'external power check' occurred here.
-// //  These are now available as standalone commands, and can be incorporated into any script.
-//
-//     SetVoltage(SetVLow);
-//     PowerOn();
-//     PrintChargeParams(0.0, targetV, minutes);
-//     startRecordsTime = StartChargeRecords();
-//     rc = ConstantVoltage(targetV, minutes, mAmpFloor);
-//     Jugs(NULL, ReportJugs);
-//     if (rc != 0)
-//         ReportExitStatus(rc);
-//     EndChargeRecords(startRecordsTime, rc);
-//     PowerOff();
-//     SetVoltage(SetVLow);
-//
-//     return rc;
-//
-// }
 
 
 //------------------------------------------------------------------------------
@@ -307,71 +241,64 @@ exitStatus JugsResetCmd (char **args)
 
 //------------------------------------------------------------------------------
 //    Precharge -- Prepare battery for constant current charging
-//
-//    Usage: p [voltageFloor [resistanceCeiling
-//                     [targetVoltage [prechargeMinutes]]]]
-//
 //------------------------------------------------------------------------------
 
 exitStatus Precharge (char **args)
 {
+    float busV;
+    exitStatus rc = Success;
+    unsigned long startingTime = millis();
+    exitStatus GenCharge(float, exitStatus (*)(float, unsigned), float, unsigned);
+
+    const float vFloor = 1.3;       // If busV exceeds this value, don't precharge
+    const float rThresh = 1.1;      // If charging resistance is below, done precharging
+    const float targetV = 1.6;      // Charging voltage
+    const unsigned minutes1 = 5;    // Initial charge time
+    const unsigned minutes2 = 30;   // Charge time on second try
+
+    ResistQ(DischargeIt, 1000);     // <<< TESTING >>>
+    LightOn();
+    delay(5000);
+    Monitor(NULL, &busV);
+    LightOff();
+
+    if (busV < vFloor) {
+        rc = GenCharge(0.0, ConstantVoltage, targetV, minutes1);
+        delay(15 * 1000);    // Allow surface charge to dissipate
+        if ((rc == MaxTime) && (ResistQ(ChargeIt, 1000) > rThresh))
+            rc = GenCharge(0.0, ConstantVoltage, targetV, minutes2);
+    }
+    ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
+    Printf("Constant-voltage total elapsed time: %lu:%lu.\n", qr.quot, qr.rem);
+
+    return ((rc == MaxTime) || (rc == Accepting)) ? Success : rc;
+
+}
+
+
+exitStatus GenCharge (float cRate, exitStatus (*funcPtr)(float, unsigned), float target, unsigned minutes)
+{
+    float busV;
     exitStatus rc;
-    float busV, chargingResistance;
     unsigned long startRecordsTime;
 
-    float voltageFloor = 0.8;          // defaults...
-    float resistanceCeiling = 3.0;
-    float targetV = 1.6;
-    unsigned minutes = 5;
-
-    int i = 0;
-    while (*++args != NULL) {
-        switch (++i) {
-          case 1:
-            voltageFloor = constrain(atof(*args), 0.0, 1.0);
-            break;
-          case 2:
-            resistanceCeiling = constrain(atof(*args), 0.0, 10.0);
-            break;
-          case 3:
-            targetV = constrain(atof(*args), 1.1, 1.7);
-            break;
-          case 4:
-            minutes = constrain(atoi(*args), 1, 30);
-            break;
-        }
-    }
+    PrintChargeParams(cRate, target, minutes);
+    startRecordsTime = StartChargeRecords();
     Monitor(NULL, &busV);
-    if (busV > 1.30)
-        return Success;        // no need to precharge  <<< should this be loaded? >>>
-
-    startRecordsTime = millis();
-    while (minutes < 40) {          // continue precharge if there is too little effect
-        PrintChargeParams(0.0, targetV, minutes);
-        StartChargeRecords();
-        SetVoltage(SetVLow);
-        PowerOn();
-        rc = ConstantVoltage(targetV, minutes, 1);    // <<< What about BailQ? >>>
-        PowerOff();
-        Jugs(NULL, ReportJugs);
-        EndChargeRecords(startRecordsTime, rc);
-        ReportExitStatus(rc);
-        delay(15 * 1000);                             // allow surface charge to fade
-        chargingResistance = ResistQ(ChargeIt, 1000);
-        if (chargingResistance < 1.1)
-            break;
-        minutes += 30;
-    }
+    SetVoltage(busV + 0.050);             // Slightly over battery voltage
+    PowerOn();                            // ...to properly bias ideal diode.
+    rc = (*funcPtr)(target, minutes);     // ConstantCurrent or ConstantVoltage
+    PowerOff();
+    Jugs(NULL, ReportJugs);
+    EndChargeRecords(startRecordsTime, rc);
     SetVoltage(SetVLow);
-    if ((rc != Success) || (rc != MaxTime))     // <<< turn MaxTime to Success >>>
-        ReportExitStatus(rc);
     return rc;
 
 }
 
 
-exitStatus PrintHelp (char **args)      // Provided in BatDev.py, which should
-{                                       // ...intercept the command
+exitStatus PrintHelp (char **args)        // Provided in BatDev.py, which should
+{                                         // ...intercept the command
     (void) args;
 
     Printf("Help unavailable\n");
@@ -447,18 +374,19 @@ exitStatus SetID (char **args)
 
 exitStatus SetCapacity (char **args)
 {
-    int mA = capacity;
+    int mA;
+    exitStatus rc = Success;
 
-    if ((args != NULL) && (*++args != NULL))
-        mA = atoi(*args);
-
-    if (mA < 500)
-        Printf("Error: capacity too low\n");
-    else
-        capacity = mA;
-
-    Printf("\rBattery mAH: %d\n", capacity);
-    return Success;
+    if (*++args != NULL) {
+        if ((mA = atoi(*args)) > 500)
+            capacity = mA;
+        else {
+            Printf("Error: capacity too low\n");
+            rc = ParameterError;
+        }
+    }
+    Printf("\rBattery mAh: %d\n", capacity);
+    return rc;
 
 }
 
