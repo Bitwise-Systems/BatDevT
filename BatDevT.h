@@ -41,8 +41,10 @@
 #define typeIRes      14     // Internal Resistance record, ohms
 #define typeInfo      15     // Information notices
 
-#define ChargeIt       0     // Used in ResistQ to request "charging" resistance
-#define DischargeIt    1     // Used in ResistQ to request "discharging" resistance
+//    "ResistQ" routine command codes:
+
+#define ChargeIt       0     // Request charging resistance
+#define DischargeIt    1     // Request discharging resistance
 
 //    "Jugs" routine command codes:
 
@@ -80,12 +82,13 @@ typedef enum {
     ReversedBattery,
     UnknownBattery,
     Alkaline,
-    Lithium
+    Lithium,
+    Accepting
 } exitStatus;
 
 
-//    Scaling coefficients for converting raw ADC readings
-//    to bus voltage and shunt current:
+//    Scaling coefficients for converting raw ADC readings to bus
+//    voltage and shunt current:
 
 typedef struct {
     float busScale;
