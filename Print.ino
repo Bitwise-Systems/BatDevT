@@ -38,6 +38,7 @@ void EndChargeRecords (unsigned long startingTime, exitStatus rc)
 {
     ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
 
+    ReportExitStatus(rc);
     Printf("{%d, \"%lu mins %lu secs elapsed\", \"Pot: %d\"}}];\n",
             typeEnd, qr.quot, qr.rem, GetPotLevel());
 
