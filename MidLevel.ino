@@ -114,32 +114,32 @@ exitStatus BatteryTypeQ (void)
 //                       exceeded, or any of various charging anomalies occurs.
 //---------------------------------------------------------------------------------------
 
-exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor)
+exitStatus ConstantVoltage (float targetV, unsigned minutes)
 {
     exitStatus bailRC;
+    float shuntMA, busV;
     unsigned long timeStamp;
     const float closeEnough = 0.01;
-    float shuntMA, busV, ambientTemp, batteryTemp;
 
-    SetVoltage(targetV);
     StartTimer(MaxChargeTimer, (minutes * 60.0));
+    ResyncTimer(ReportTimer);
     Jugs(NULL, ResetJTime);
+    SetVoltage(targetV);
 
     while (IsRunning(MaxChargeTimer)) {
         timeStamp = millis();
         Monitor(&shuntMA, &busV);
         Jugs(shuntMA, Tally);
 
-        bailRC = BailOutQ();
-        if (bailRC != 0)
+        if ((bailRC = BailOutQ()) != 0)
             return bailRC;
         if (shuntMA > MAmpCeiling)
             return MaxAmp;
-//      if (shuntMA > (capacity / 10.0))    // absorbing at greater than C/10 implies that
-//          return Success;                 //..battery is ready for constant current charging
-        if (shuntMA < mAmpFloor)
+        if (shuntMA < 1.0)
             return MinAmp;
-
+        if ((shuntMA > (capacity / 10.0)) && (minutes > 5))    // <<< TESTING (minutes > 5) >>>
+            return Accepting;                                  // Absorbing at greater than C/10 implies
+                                                               //...battery is ready for constant current charging
         while (busV < (targetV - closeEnough)) {
             if (NudgeVoltage(+1) == 0)
                 return UpperBound;
@@ -152,6 +152,7 @@ exitStatus ConstantVoltage (float targetV, unsigned int minutes, float mAmpFloor
         }
         if (HasExpired(ReportTimer))
             GenReport(typeCV, shuntMA, busV, timeStamp);
+
     }
     return MaxTime;
 }
@@ -178,7 +179,7 @@ float Jugs (float milliAmps, int action)
           jugMillis = localMillis;
           break;
       case ReportJugs:
-          Printf("{%d, \"%1.2f mAH in, %1.2f mAH out\"},\n", typeJugs,
+          Printf("{%d, \"%1.2f mAh in, %1.2f mAh out\"},\n", typeJugs,
              jCTally / (60.0 * 60.0 * 1000.0), jDTally / (60.0 * 60.0 * 1000.0));
           break;
       case ResetJTime:
