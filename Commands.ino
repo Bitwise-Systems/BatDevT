@@ -55,13 +55,18 @@ exitStatus ccCmd (char **args)
         }
     }
     minutes = constrain(minutes, 1.0, 1440.0);
+
     do {
         rc = GenCharge(divisor, ConstantCurrent, targetMA, minutes);
-        divisor *= 1.5;    // Downshift to 2/3 of previous charge rate
-        targetMA = capacity / divisor;
-        unchargedPercent = 1.0 - (Jugs(0.0, ReturnCharge) / (1.2 * capacity));
-        minutes = unchargedPercent * ToMinutes(divisor);
-    } while (divisor < 31 && unchargedPercent > 0);
+        if (rc != PanicVoltage && rc != UpperBound)
+            break;
+        else {
+            divisor *= 1.5;
+            targetMA = capacity / divisor;
+            unchargedPercent = 1.0 - (Jugs(0.0, ReturnCharge) / (1.2 * capacity));
+            minutes = unchargedPercent * ToMinutes(divisor);
+        }
+    } while (divisor < 31 && minutes > 0);
 
     ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
     Printf("Constant-current total elapsed time: %lu:%lu.\n", qr.quot, qr.rem);
