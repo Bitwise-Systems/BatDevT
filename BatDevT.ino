@@ -14,8 +14,10 @@
 #include "BatDevT.h"
 #include "DriverTimer.h"
 #include "Smoothing.h"
+#include "LED.h"                                // <<< TESTING >>>
 
 const struct DispatchTable commandTable[] = {
+    { "led",        LEDcmd          },          // <<< TESTING >>>
     { "b",          SetID           },
     { "bc",         SetCapacity     },
     { "bp",         BatPresentCmd   },
@@ -46,6 +48,7 @@ const struct DispatchTable commandTable[] = {
 //  { "load",       LoadCmd         },
 //  { "nudge",      NudgeCmd        },
 //  { "ram",        FreeRam         },
+//  { "rt",         RTest           },
 //  { "s",          Sleep219        },
 //  { "setpga",     PgaCmd          },
 //  { "tell",       Report          },
@@ -73,6 +76,7 @@ void setup (void)
     }
     InitTimerTask(RefreshTemperatures);
     InitLoads();
+    InitLEDs();         // <<< TESTING >>>
     SetPGA(8);
     Jugs(NULL, ResetJugs);
 

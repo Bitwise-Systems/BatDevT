@@ -20,6 +20,10 @@
 #define OneWireBus     12    // DS18B20 data bus
 #define PotToggle      13    // MAX5483 clock pin: falling edge
 
+#define RedLED         A0    // LED "user interface" experimentation
+#define GreenLED       A1    // LED "user interface" experimentation
+#define BlueLED        A2    // LED "user interface" experimentation
+
 #define PowerGood      A3    // TLynx 'PGD' pin: 0 => power is NOT good
 #define I2C_SDA        A4    // INA219 data bus
 #define I2C_SCL        A5    // INA219 clock pin

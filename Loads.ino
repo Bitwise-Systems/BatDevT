@@ -119,7 +119,6 @@ void LoadByCapacity (void)
 
 }
 
-
 // void UnknownLoad (void)    // Used by 'LoadCmd' in handling unknown argument
 // {
 //     Printf("Unknown load\n");

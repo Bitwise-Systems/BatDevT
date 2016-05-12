@@ -2,6 +2,46 @@
 //      Commands.ino  --  Handlers for interpreter commands
 //
 
+exitStatus LEDcmd (char **args)      // <<< TESTING >>>
+{
+    byte ledPin;
+    LEDstate ledState;
+
+    while (*++args != NULL) {
+        switch ((*args)[0]) {
+          case '+':
+            ledState = On;
+            break;
+          case '-':
+            ledState = Off;
+            break;
+          case '.':
+            ledState = Blinking;
+            break;
+          default:
+            Printf("Unrecognized LED state\n");
+            return ParameterError;
+        }
+        switch ((*args)[1]) {
+          case 'r':
+            ledPin = RedLED;
+            break;
+          case 'g':
+            ledPin = GreenLED;
+            break;
+          case 'b':
+            ledPin = BlueLED;
+            break;
+          default:
+            Printf("Unknown LED color\n");
+            return ParameterError;
+        }
+        SetLEDstate(ledPin, ledState);
+    }
+    return Success;
+}
+
+
 exitStatus BatPresentCmd (char **args)
 {
     return BatteryPresentQ();
@@ -66,7 +106,7 @@ exitStatus ccCmd (char **args)
             unchargedPercent = 1.0 - (Jugs(0.0, ReturnCharge) / (1.2 * capacity));
             minutes = unchargedPercent * ToMinutes(divisor);
         }
-    } while (divisor < 31 && minutes > 0);
+    } while (divisor < 31 && unchargedPercent > 0);
 
     ldiv_t qr = ldiv(((millis() - startingTime) / 1000L), 60L);
     Printf("Constant-current total elapsed time: %lu:%lu.\n", qr.quot, qr.rem);
